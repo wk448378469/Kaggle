@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
-import xgboost as xgb
+from sklearn.preprocessing import OneHotEncoder
 
 def processing_part0(train,test):
     train['hasname'] = train['Name'].fillna(0)
@@ -99,8 +99,10 @@ def processing_part1(data,types='train'):
             return 2
         else:
             return 0
+        
     # 处理缺失值
     data['SexuponOutcome'].fillna('Unknown')
+    # 处理NaN浮点型的一个数据
     train_data.loc[train_data['SexuponOutcome'] != train_data['SexuponOutcome'],'SexuponOutcome'] = 'Unknown'
     # 生成两个新的feature
     data['fertility'] = data['SexuponOutcome'].map(pro_fertility)
@@ -111,15 +113,138 @@ def processing_part1(data,types='train'):
     return data
     
 def processing_part2(data):
-    pass
+    # 新增一个是否是混合的种类
+    data['isMix'] = data['Breed'].str.contains('mix',case=False).astype(int)
+    
+    # 是否是交叉
+    def breed_cross(breedstring):
+        if "/" in breedstring:
+            return 1
+        return 0
+    data['cross'] = data['Breed'].apply(lambda x:breed_cross(x))
+    
+    # 毛发的类型
+    def breed_hairtype(breedstring):
+        if "Shorthair" in breedstring:
+            return 1
+        if "Medium Hair" in breedstring:
+            return 2
+        if "Longhair" in breedstring:
+            return 3
+        if "hairless" in breedstring.lower():
+            return 4
+        if "Wirehair" in breedstring:
+            return 5
+        return 0
+    data['hairtype'] = data['Breed'].apply(lambda x:breed_hairtype(x))
+    
+    # 是否有攻击性
+    def breed_anyof(breedstring, anyof):
+        for w in anyof:
+            if w.lower() in breedstring.lower():
+                return 1
+        return 0
+    data['Isaggressive'] = data['Breed'].apply(lambda x:breed_anyof(x,["Rottweiler", "Pit Bull", "Siberian Husky"]))
+    
+    data.drop('Breed',axis=1,inplace=True)
+    return data
 
 def processing_part3(data):
-    pass
+    
+    def multi_color(colorstring):
+        if "/" in colorstring:
+            return 1
+        return 0
+    data['multi_color'] = data['Color'].apply(lambda x: multi_color(x))
+    
+    # 对色表
+    colors = ['Apricot', 'Black', 'Black Brindle', 'Black Smoke', 'Black Tiger', 'Blue', 'Blue Cream', \
+                         'Blue Merle', 'Blue Smoke', 'Blue Tick', 'Blue Tiger', 'Brown', 'Brown Brindle', 'Brown Merle', \
+                         'Brown Tabby', 'Brown Tiger', 'Buff', 'Chocolate', 'Cream', 'Fawn', 'Gold', 'Gray', 'Liver', \
+                         'Liver Tick', 'Orange', 'Pink', 'Red', 'Red Merle', 'Red Tick', 'Ruddy', 'Sable', 'Silver', \
+                         'Tan', 'Tricolor', 'White', 'Yellow', 'Yellow Brindle','Gray Tiger',\
+                         'Agouti', 'Apricot', 'Black', 'Black Smoke', 'Black Tabby', 'Black Tiger', 'Blue', \
+                         'Blue Cream', 'Blue Point', 'Blue Smoke', 'Blue Tabby', 'Brown', 'Brown Tabby', 'Brown Tiger', \
+                         'Buff', 'Calico', 'Calico Point', 'Chocolate', 'Chocolate Point', 'Cream', 'Cream Tabby', \
+                         'Flame Point', 'Gray', 'Gray Tabby', 'Lilac Point', 'Lynx Point', 'Orange', 'Orange Tabby', \
+                         'Orange Tiger', 'Pink', 'Seal Point', 'Silver', 'Silver Lynx Point', 'Silver Tabby', 'Tan', \
+                         'Torbie', 'Tortie', 'Tortie Point', 'Tricolor', 'White', 'Yellow', 'Red', \
+                         'Black Brindle','Fawn']
+
+    color_groups = ['Light','Dark','Dark/Medium','Dark','Dark/Medium','Medium','Medium/Light', \
+                 'Light/Medium', 'Medium', 'Medium', 'Medium', 'Medium','Medium', 'Light/Medium', 
+                 'Medium', 'Medium','Light','Dark','Light','Light/Dark','Medium','Medium','Medium',
+                 'Light/Medium','Medium','Medium','Medium','Light/Medium','Light/Medium','Medium','Medium/Dark','Medium',
+                 'Medium','Light/Medium/Dark','Light','Light','Light/Medium','Medium/Dark',\
+                 'Medium','Light','Dark','Dark', 'Dark', 'Dark/Medium', 'Medium',\
+                 'Medium/Light','Light/Medium','Medium','Medium/Light','Medium','Medium/Light','Medium',\
+                 'Light','Light/Medium/Dark','Light/Medium/Dark','Dark','Medium/Dark','Light','Light/Medium',\
+                 'Light','Medium','Medium/Light', 'Light/Medium','Light/Medium','Medium','Medium',\
+                  'Medium','Medium','Light/Dark','Medium','Light/Medium','Medium/Dark', 'Medium',\
+                 'Medium/Dark','Dark/Medium','Light/Dark','Light/Medium/Dark','Light','Light', 'Medium',\
+                 'Dark/Medium','Light']
+
+    cdict = dict(zip(colors, color_groups))
+    def parse_color(colorstring):
+        split = colorstring.split('/')
+        string = ""
+        #print split
+        for j in split:
+            #print '   ',j
+            string += cdict[j]+'/'
+        collect = []
+        for j in string[:-1].split('/'):
+            if j not in collect:
+                collect.append(j)
+        if len(collect) == 3:
+            color_groups = 'Tricolor'
+        else:
+            color_groups = "/".join(collect)
+        return color_groups
+    
+    def islight(colorstring):
+        if 'Light' in colorstring:
+            return 1
+        return 0
+    def ismedium(colorstring):
+        if 'Medium' in colorstring:
+            return 1
+        return 0
+    def isdark(colorstring):
+        if 'Dark' in colorstring:
+            return 1
+        return 0
+    def istricolor(colorstring):
+        if 'Tricolor' in colorstring:
+            return 1
+        return 0
+    data['colorgroups'] = data['Color'].apply(lambda x: parse_color(x))
+    data['islight'] = data['colorgroups'].apply(lambda x:islight(x))
+    data['ismedium'] = data['colorgroups'].apply(lambda x:ismedium(x))
+    data['isdark'] = data['colorgroups'].apply(lambda x:isdark(x))
+    data['istricolor'] = data['colorgroups'].apply(lambda x:istricolor(x))
+    
+    data.drop(['Color','colorgroups'],axis=1,inplace=True)
+    return data
 
 def processing_part4(data):
-    pass
+    data['DateTime'] = pd.to_datetime(data['DateTime'])
+    data['year'] = data['DateTime'].dt.year
+    data['month'] = data['DateTime'].dt.month
+    data['day'] = data['DateTime'].dt.day
+    data['wday'] = data['DateTime'].dt.dayofweek
+    data['hour'] = data['DateTime'].dt.hour + data['DateTime'].dt.minute/60e0
+    data['qtr'] = data['DateTime'].dt.quarter
+    data.drop('DateTime',axis=1,inplace=True)
+    return data
 
-    
+def standard(train,test):
+    SS = StandardScaler()
+    SS.fit(train)
+    train = SS.transform(train)
+    test = SS.transform(test)
+    return train,test
+
 if __name__ == '__main__':
 
     train_file = 'D:/mygit/Kaggle/Shelter_Animal_Outcomes/train.csv'
@@ -135,7 +260,6 @@ if __name__ == '__main__':
     train_data = processing_part1(train_data,types='train')
     test_data = processing_part1(test_data,types='test')
 
-
     # 处理Breed
     train_data = processing_part2(train_data)
     test_data = processing_part2(test_data)
@@ -148,4 +272,19 @@ if __name__ == '__main__':
     train_data = processing_part4(train_data)
     test_data = processing_part4(test_data)
     
+    # 标准化
+    target = train_data['target']
+    train_data.drop('target',axis=1,inplace=True)
+    train_data,test_data = standard(train_data,test_data)
+    enc = OneHotEncoder()
+    target = enc.fit_transform(target.values.reshape(-1,1)).toarray()
     
+    # 保存要预测的
+    pd.DataFrame(train_data).to_csv('D:/mygit/Kaggle/Shelter_Animal_Outcomes/Processed_data/test.csv')
+    
+    # 划分数据集
+    X_train, X_test, y_train, y_test = train_test_split(train_data,target,test_size=0.3)
+    pd.DataFrame(X_train).to_csv('D:/mygit/Kaggle/Shelter_Animal_Outcomes/Processed_data/X_train.csv')
+    pd.DataFrame(X_test).to_csv('D:/mygit/Kaggle/Shelter_Animal_Outcomes/Processed_data/X_test.csv')
+    pd.DataFrame(y_train).to_csv('D:/mygit/Kaggle/Shelter_Animal_Outcomes/Processed_data/y_train.csv')
+    pd.DataFrame(y_test).to_csv('D:/mygit/Kaggle/Shelter_Animal_Outcomes/Processed_data/y_test.csv')
