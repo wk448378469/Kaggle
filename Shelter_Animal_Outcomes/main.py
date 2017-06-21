@@ -12,14 +12,38 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 import xgboost as xgb
 
+def processing_part0(train,test):
+    train['hasname'] = train['Name'].fillna(0)
+    train.loc[train['hasname'] != 0 , 'hasname'] = 1
+    test['hasname'] = test['Name'].fillna(0)
+    test.loc[test['hasname'] != 0 , 'hasname'] = 1
+    
+    train['Name'].fillna('Unnamed',inplace=True)
+    test['Name'].fillna('Unnamed',inplace=True)
+    
+    unique_name_train,name_counts_train = np.unique(train_data['Name'],return_counts=True)
+    unique_name_test,name_counts_test = np.unique(test_data['Name'],return_counts=True)
+    
+    name_dict_train = dict(zip(unique_name_train,1e0*name_counts_train/np.sum(name_counts_train)))
+    name_dict_test = dict(zip(unique_name_test,1e0*name_counts_test/np.sum(name_counts_test)))
+    
+    #合并两个名字的列表
+    name_dict = dict(name_dict_train,**name_dict_test)
+    
+    def occur(x,dic):
+        # 返回名字的使用情况
+        return dic[x]
+    
+    train['nameoccurrance'] = train['Name'].apply(lambda x : occur(x,name_dict))
+    test['nameoccurrance'] = test['Name'].apply(lambda x: occur(x,name_dict))
+    
+    train.drop('Name',axis=1,inplace=True)
+    test.drop('Name',axis=1,inplace=True)
+    
+    return train,test
+
 
 def processing_part1(data,types='train'):
-    
-    # 处理动物名字这个略显鸡肋的feature
-	# 明天这个地方调整一下，在名字上在做些文章
-    data['hasname'] = data['Name'].fillna(0)
-    data.loc[data['hasname'] != 0 ,'hasname'] = 1
-    data.drop('Name',axis=1,inplace=True)
     
     if types == 'train':
         data.drop('AnimalID',axis=1,inplace=True)
@@ -60,10 +84,30 @@ def processing_part1(data,types='train'):
     data.drop('AnimalType',axis=1,inplace=True)
     
     # 处理性别问题
-	# 这里也记得调整下，不要随便删除特征！！！
-    gender = {'Neutered Male':1, 'Spayed Female':2, 'Intact Male':3, 'Intact Female':4, 'Unknown':5, np.nan:0}
-    data['SexuponOutcome'] = data['SexuponOutcome'].map(gender)
+    def pro_fertility(sex):
+        if 'Intact' in sex:
+            return 1
+        elif 'Neutered' in sex or 'Spayed' in sex:
+            return 2
+        else:
+            return 0
+
+    def pro_sex(sex):
+        if 'Male' in sex:
+            return 1
+        elif 'Female' in sex:
+            return 2
+        else:
+            return 0
+    # 处理缺失值
+    data['SexuponOutcome'].fillna('Unknown')
+    train_data.loc[train_data['SexuponOutcome'] != train_data['SexuponOutcome'],'SexuponOutcome'] = 'Unknown'
+    # 生成两个新的feature
+    data['fertility'] = data['SexuponOutcome'].map(pro_fertility)
+    data['sex'] = data['SexuponOutcome'].map(pro_sex)
     
+    gender = {'Neutered Male':1, 'Spayed Female':2, 'Intact Male':3, 'Intact Female':4, 'Unknown':5}
+    data['SexuponOutcome'] = data['SexuponOutcome'].map(gender)    
     return data
     
 def processing_part2(data):
@@ -78,13 +122,16 @@ def processing_part4(data):
     
 if __name__ == '__main__':
 
-    train_file = 'C:/Users/dell/Desktop/train.csv'
-    test_file = 'C:/Users/dell/Desktop/test.csv'
+    train_file = 'D:/mygit/Kaggle/Shelter_Animal_Outcomes/train.csv'
+    test_file = 'D:/mygit/Kaggle/Shelter_Animal_Outcomes/test.csv'
     # 读取数据
     train_data = pd.read_csv(train_file)
     test_data = pd.read_csv(test_file)
     
-    # 清洗数据
+    # 处理name
+    train_data,test_data = processing_part0(train_data,test_data)
+    
+    # 主要处理Age,sex这两个特征
     train_data = processing_part1(train_data,types='train')
     test_data = processing_part1(test_data,types='test')
 
