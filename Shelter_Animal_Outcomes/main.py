@@ -9,8 +9,6 @@ Created on Tue Jun 20 14:09:33 2017
 import numpy as np 
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import OneHotEncoder
 
 def processing_part0(train,test):
     train['hasname'] = train['Name'].fillna(0)
@@ -276,15 +274,8 @@ if __name__ == '__main__':
     target = train_data['target']
     train_data.drop('target',axis=1,inplace=True)
     train_data,test_data = standard(train_data,test_data)
-    enc = OneHotEncoder()
-    target = enc.fit_transform(target.values.reshape(-1,1)).toarray()
     
-    # 保存要预测的
-    pd.DataFrame(train_data).to_csv('D:/mygit/Kaggle/Shelter_Animal_Outcomes/Processed_data/test.csv')
-    
-    # 划分数据集
-    X_train, X_test, y_train, y_test = train_test_split(train_data,target,test_size=0.3)
-    pd.DataFrame(X_train).to_csv('D:/mygit/Kaggle/Shelter_Animal_Outcomes/Processed_data/X_train.csv')
-    pd.DataFrame(X_test).to_csv('D:/mygit/Kaggle/Shelter_Animal_Outcomes/Processed_data/X_test.csv')
-    pd.DataFrame(y_train).to_csv('D:/mygit/Kaggle/Shelter_Animal_Outcomes/Processed_data/y_train.csv')
-    pd.DataFrame(y_test).to_csv('D:/mygit/Kaggle/Shelter_Animal_Outcomes/Processed_data/y_test.csv')
+    # 保存数据
+    target.to_csv('D:/mygit/Kaggle/Shelter_Animal_Outcomes/Processed_data/train_target.csv')
+    pd.DataFrame(train_data).to_csv('D:/mygit/Kaggle/Shelter_Animal_Outcomes/Processed_data/train.csv')
+    pd.DataFrame(test_data).to_csv('D:/mygit/Kaggle/Shelter_Animal_Outcomes/Processed_data/test.csv')
