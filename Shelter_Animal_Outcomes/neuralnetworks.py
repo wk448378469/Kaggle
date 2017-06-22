@@ -38,13 +38,11 @@ def addLayer(inputs,in_size,out_size,activation_function=None):
     return outputs
 
 # placehold训练模型需要的数据
-keep_prob = tf.placeholder(tf.float32)
 xs = tf.placeholder(tf.float32,[None,23])
 ys = tf.placeholder(tf.float32,[None,5])
 
-# 创建结构，一个隐藏层，一个输出层
-lay1 = addLayer(xs,23,10,activation_function=None)
-prediction = addLayer(lay1,10,5,activation_function=tf.nn.softmax)
+# 创建结构
+prediction = addLayer(xs,23,5,activation_function=tf.nn.softmax)
 
 # 优化目标
 cross_entropy = tf.reduce_mean(-tf.reduce_sum(ys * tf.log(prediction),reduction_indices=[1]))
@@ -58,9 +56,16 @@ init = tf.global_variables_initializer()
 sess.run(init)
 
 # 跑起来~
-for i in range(2000):
+for i in range(3000):
     sess.run(train_step,feed_dict={xs:train, ys:target})
     if i % 50 == 0:
         print (i)
 
 predicted = sess.run(prediction, feed_dict={xs:need_pre})
+
+output = pd.DataFrame(predicted,columns=['Return_to_owner','Transfer','Euthanasia','Died','Adoption'])
+output.columns.names = ['ID']
+output.index.names = ['ID']
+output.index += 1
+output.to_csv('D:/mygit/Kaggle/Shelter_Animal_Outcomes/model_pre/prediction_neuralnetwork.csv')
+# 自己在文件中补充上ID吧。。。。
