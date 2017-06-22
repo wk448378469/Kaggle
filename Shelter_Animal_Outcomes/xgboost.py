@@ -6,9 +6,7 @@ Created on Wed Jun 21 17:18:18 2017
 """
 
 import xgboost as xgb
-from sklearn.grid_search import GridSearchCV
 import pandas as pd 
-import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import log_loss
 
