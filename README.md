@@ -5,6 +5,6 @@
 Shelter_Animal_Outcomes
 
 ### Getting Started                              
-Titanic_Machine_Learning_from_Disaster
-Digit_Recognizer
-House_Prices_Advanced_Regression_Techniques
+Titanic_Machine_Learning_from_Disaster  
+Digit_Recognizer  
+House_Prices_Advanced_Regression_Techniques  
