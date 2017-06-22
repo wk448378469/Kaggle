@@ -21,8 +21,8 @@ from keras.layers import Dense,Dropout
 from keras.preprocessing.image import ImageDataGenerator
 from keras.callbacks import EarlyStopping, ModelCheckpoint
 
-train = pd.read_csv('C:/Users/carne/Desktop/train.csv')
-test_images = (pd.read_csv('C:/Users/carne/Desktop/test.csv').values).astype('float32')
+train = pd.read_csv('D:\mygit\Kaggle\Digit_Recognizer/train.csv')
+test_images = (pd.read_csv('D:\mygit\Kaggle\Digit_Recognizer/test.csv').values).astype('float32')
 
 train_images = (train.ix[:,1:].values).astype('float32')
 train_lables = train.ix[:,0].values.astype('int32') 
