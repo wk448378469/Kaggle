@@ -7,16 +7,21 @@ Created on Wed Apr 12 10:03:09 2017
 
 import pandas as pd
 import numpy as np
+from scipy import stats
 from scipy.stats import skew     # 求峰度的
+from scipy.stats import norm
 import xgboost as xgb
 from sklearn.cross_validation import KFold
 from sklearn.ensemble import ExtraTreesRegressor
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_squared_error   
-from sklearn.linear_model import Ridge, RidgeCV, ElasticNet, LassoCV, Lasso
+from sklearn.metrics import mean_squared_error
+from sklearn.linear_model import Ridge,Lasso
 from math import sqrt
+import seaborn as sns
+import matplotlib.pyplot as plt
+from sklearn.preprocessing import StandardScaler
 
-df_train = pd.read_csv('C:/Users/carne/Desktop/train.csv')
+df_train = pd.read_csv('D:/mygit/Kaggle/House_Prices_Advanced_Regression_Techniques/train.csv')
 df_train['SalePrice'].describe()
 sns.distplot(df_train['SalePrice'])   # 图看上去左偏
 print (df_train['SalePrice'].skew())  # 偏移
@@ -157,10 +162,10 @@ TARGET = 'SalePrice'
 NFOLDS = 5        # 几个基模型
 SEED = 0
 NROWS = None
-SUBMISSION_FILE = 'C:/Users/carne/Desktop/submission.csv'
+SUBMISSION_FILE = 'D:/mygit/Kaggle/House_Prices_Advanced_Regression_Techniques/submission.csv'
 
-train = pd.read_csv("C:/Users/carne/Desktop/train.csv")
-test = pd.read_csv("C:/Users/carne/Desktop/test.csv")
+train = pd.read_csv("D:/mygit/Kaggle/House_Prices_Advanced_Regression_Techniques/train.csv")
+test = pd.read_csv("D:/mygit/Kaggle/House_Prices_Advanced_Regression_Techniques/test.csv")
 
 ntrain = train.shape[0]
 ntest = test.shape[0]
@@ -282,7 +287,8 @@ rf_oof_train, rf_oof_test = get_oof(rf)
 rd_oof_train, rd_oof_test = get_oof(rd)
 ls_oof_train, ls_oof_test = get_oof(ls)
 
-print("XG-CV: {}".format(sqrt(mean_squared_error(y_train, xg_oof_train))))
+# 计算每个模型的损失
+print("XG-CV: {}".format(sqrt(mean_squared_error(y_train, xg_oof_train)))) # 最小
 print("ET-CV: {}".format(sqrt(mean_squared_error(y_train, et_oof_train))))
 print("RF-CV: {}".format(sqrt(mean_squared_error(y_train, rf_oof_train))))
 print("RD-CV: {}".format(sqrt(mean_squared_error(y_train, rd_oof_train))))
