@@ -5,9 +5,6 @@ Created on Fri Jun 23 10:35:31 2017
 @author: 凯风
 """
 
-
-
-
 def process_date(data):
     # 字符串转化为事件对象
     data['Dates'] = pd.to_datetime(data['Dates'])
@@ -179,7 +176,7 @@ if __name__ =='__main__':
     train,test = process_SS(train,test)
     
     # 保存文件
-    target.to_csv('D:/mygit/Kaggle/San_Francisco_Crime_Classification/Processed_data/train_target.csv',header=False,index=False)
+    target.to_csv('D:/mygit/Kaggle/San_Francisco_Crime_Classification/Processed_data/target.csv',header=False,index=False)
     target_dict.to_csv('D:/mygit/Kaggle/San_Francisco_Crime_Classification/Processed_data/target_dict.csv',header=False,index=False)
     pd.DataFrame(train).to_csv('D:/mygit/Kaggle/San_Francisco_Crime_Classification/Processed_data/train.csv',header=False,index=False)
-    pd.DataFrame(train).to_csv('D:/mygit/Kaggle/San_Francisco_Crime_Classification/Processed_data/test.csv',header=False,index=False)
+    pd.DataFrame(test).to_csv('D:/mygit/Kaggle/San_Francisco_Crime_Classification/Processed_data/test.csv',header=False,index=False)
