@@ -13,9 +13,14 @@ target_dict = pd.read_csv('D:/mygit/Kaggle/San_Francisco_Crime_Classification/Pr
 train = pd.read_csv('D:/mygit/Kaggle/San_Francisco_Crime_Classification/Processed_data/train.csv',header=None)
 test = pd.read_csv('D:/mygit/Kaggle/San_Francisco_Crime_Classification/Processed_data/test.csv',header=None)
 
+# 处理特征名称带有乱七八糟的问题
+target_dict = target_dict.values.astype('str').reshape(39,)
+
+# xgboost的数据类型
 dneedpre = xgb.DMatrix(test)
 dtrain = xgb.DMatrix(train,target)
 
+# 随意选取的参数，实在没精力CV了。。。
 xgb_params = {
                 # xgboost的
                 'objective': 'multi:softprob',
