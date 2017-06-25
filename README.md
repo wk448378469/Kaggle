@@ -4,6 +4,7 @@
 ### Playgroud
 Shelter_Animal_Outcomes  
 San_Francisco_Crime_Classification  
+Kobe_Bryant_Shot_Selection  
 
 ### Getting Started                              
 Titanic_Machine_Learning_from_Disaster  
