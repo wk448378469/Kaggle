@@ -181,7 +181,7 @@ def process_part4(data):
 def process_part5(data,isStandardized=True):
         
     testX = data[data['shot_made_flag'].isnull() == True]
-    testY = data['shot_id']
+    testY = testX['shot_id']
     testX.drop(['shot_made_flag','shot_id'],axis=1,inplace=True)
     testX = testX.fillna(0)
     
@@ -204,16 +204,21 @@ def process_part5(data,isStandardized=True):
     while not varianceEnough:
         pca = PCA(n_components=n_com)
         pca.fit(trainX,trainY)
-        n_com = n_com + 1
-        if np.sum(pca.explained_variance_ratio_) > 0.9:
+        n_com = n_com + 2
+        if np.sum(pca.explained_variance_ratio_) < 0.95:
+            print('variance is too low')
+        else:
+            print ('PCA is over')
             varianceEnough = True
-            
     trainX = pca.transform(trainX)
     testX = pca.transform(testX)
     
-
-
-
+    pd.DataFrame(trainX).to_csv('D:/mygit/Kaggle/Kobe_Bryant_Shot_Selection/Processed_data/trainX.csv',header=False,index=False)
+    pd.DataFrame(testX).to_csv('D:/mygit/Kaggle/Kobe_Bryant_Shot_Selection/Processed_data/testX.csv',header=False,index=False)
+    trainY.to_csv('D:/mygit/Kaggle/Kobe_Bryant_Shot_Selection/Processed_data/trainY.csv',header=False,index=False)
+    testY.to_csv('D:/mygit/Kaggle/Kobe_Bryant_Shot_Selection/Processed_data/testY.csv',header=False,index=False)
+    
+    
 if __name__ == '__main__':
     # 读取数据
     import pandas as pd
@@ -235,6 +240,6 @@ if __name__ == '__main__':
     data = process_part4(data)
     
     # 标准化、pca、分割数据、保存数据~
-    data = process_part5(data)
+    process_part5(data)
     
     
