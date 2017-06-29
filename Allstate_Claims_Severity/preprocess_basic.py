@@ -11,7 +11,7 @@ from dataset import Dataset
 
 for name in ['train','test']:
     print ('loading original %s data...' % name)
-    data = pd.read_csv('D:/mygit/Kaggle/Allstate_Claims_Severity/%s.csv' % name)
+    data = pd.read_csv('D:/mygit/Kaggle/Allstate_Claims_Severity/%s.csv.zip' % name)
     
     if name == 'train':
         cat_columns = [c for c in data.columns if c.startswith('cat')]   # 标称型特征
