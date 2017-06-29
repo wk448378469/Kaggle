@@ -1,6 +1,9 @@
 ## Kaggle
 自己参与kaggle比赛的汇总，一个文件夹为一次比赛的全部内容，主要包含原始数据、特征处理脚本，训练模型和预测的脚本。
 
+### Recruitment
+Allstate_Claims_Severity  
+
 ### Playgroud
 Shelter_Animal_Outcomes  
 San_Francisco_Crime_Classification  
