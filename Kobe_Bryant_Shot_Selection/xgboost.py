@@ -32,12 +32,12 @@ gscv.best_params_
 log_loss(y_test,gscv.predict_proba(X_test)[:,1])
 
 # 全数据训练
-xgb = xgb.sklearn.XGBClassifier(max_depth=gscv.best_params_['max_depth'],
+xgbmodel = xgb.sklearn.XGBClassifier(max_depth=gscv.best_params_['max_depth'],
                                 min_child_weight=gscv.best_params_['min_child_weight'],
                                 gamma=gscv.best_params_['gamma'])
-xgb.fit(trainX,trainY.values.reshape(-1))
+xgbmodel.fit(trainX,trainY.values.reshape(-1))
 
 # 预测并保存数据
-needPreId['shot_made_flag'] = xgb.predict_proba(needPre)[:,1]
+needPreId['shot_made_flag'] = xgbmodel.predict_proba(needPre)[:,1]
 needPreId.columns = ['shot_id','shot_made_flag']
 needPreId.to_csv('D:/mygit/Kaggle/Kobe_Bryant_Shot_Selection/Prediction_Result/prediction_xgboost.csv',index=False)
