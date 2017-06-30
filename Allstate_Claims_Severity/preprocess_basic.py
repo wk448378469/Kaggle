@@ -24,6 +24,7 @@ for name in ['train','test']:
     # 调用Dataset方法保存特征数据 
     Dataset(categorical=data[cat_columns].values).save(name)
     Dataset(numeric=data[num_columns].values.astype(np.float32)).save(name)
+    
     # 调用Dataset方法保存目标变量
     if 'loss' in data.columns:
         Dataset(loss=data['loss']).save(name)
