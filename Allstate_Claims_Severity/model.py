@@ -39,23 +39,23 @@ class SklearnWrapper(object):
 
 class TensorflowWrapper(object):
     
-    def __init__(self,n_step,input_size=500,learn_rate,activation_function=None):
+    def __init__(self,n_step,input_size,learn_rate,activation_function=None):
         self.n_step = n_step
         self.input_size = input_size
         self.xs = tf.placeholder(tf.float32,[None,self.input_size])
         self.ys = tf.placeholder(tf.float32,[None,1])
         self.activation_function = activation_function
         self.add_layer()
-        self.loss = tf.reduce_mean(tf.reduce_sum(tf.square(self.ys - self.pred),reduction_indices=[1]))
+        self.loss = tf.reduce_mean(tf.reduce_sum(tf.abs(self.ys - self.pred),reduction_indices=[1]))
         self.train_op = tf.train.GradientDescentOptimizer(learn_rate).minimize(self.loss)
         
     def add_layer(self):
         # 初始化weights和biases 
-        Ws = self._weight_variable([self.input_size,1])
-        bs = self._bias_variable([1,])
+        Ws = tf.Variable(tf.random_normal([self.input_size, 1]))
+        bs = tf.Variable(tf.zeros([1, 1]) + 0.1)
     
         # 计算神经元输出~
-        Wx_plus_b = tf.matmul(self.input_size, Ws) + bs
+        Wx_plus_b = tf.matmul(self.xs, Ws) + bs
 
         # axes，想要标准化的维度
         fc_mean, fc_var = tf.nn.moments(Wx_plus_b,axes=[0])
@@ -83,16 +83,6 @@ class TensorflowWrapper(object):
     
         return self.pred
 
-    def _weight_variable(self,shape):
-        # 初始化变量weights
-        initializer = tf.random_normal_initializer(mean=0,stddev=1.,)
-        return tf.get_variable(shape=shape,initializer=initializer,name=name)
-    
-    def _bias_variable(self,shape):
-        # 初始化变量bias
-        initializer = tf.constant_initializer(0.1)
-        return tf.get_variable(shape=shape,initializer=initializer,name=name)
-    
 
     def train(self,x_train,y_train):
         self.sess = tf.Session()
