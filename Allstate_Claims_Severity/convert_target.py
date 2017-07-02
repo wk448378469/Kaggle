@@ -8,34 +8,44 @@ Created on Sat Jul  1 15:07:32 2017
 from scipy.stats import boxcox
 import numpy as np
 
+class norm(object):
 
-def norm_y(y):
-    return boxcox(np.log1p(y), lmbda=0.7)
-
-def norm_y_inv(y_bc):
-    return np.expm1((y_bc * 0.7 + 1)**(1/0.7))
+    def forwardConversion(self, y):
+        return boxcox(np.log1p(y), lmbda=0.7)
     
-def log_y(y):
-    return np.log(y)
-
-def log_y_inv(y):
-    return np.exp(y)
-
-def log_ofs_y(y,ofs):
-    return np.log(y + ofs)
-
-def log_ofs_y_inv(yl,ofs):
-    return np.clip(np.exp(yl) - ofs, 1.0, np.inf)
-
-def pow_y(y,p):
-    return y ** p
-
-def pow_y_inv(y,p):
-    return y ** (1 / p)
+    def reverseConversion(self, y_bc):
+        return np.expm1((y_bc * 0.7 + 1)**(1/0.7))
 
 
-def pow_ofs_y(y, p, ofs):
-    return (y + ofs) ** p
+class log(object):    
 
-def pow_ofs_y_inv(y, p, ofs):
-    return np.clip(y ** (1 / p) - ofs, 1.0, np.inf)
+    def forwardConversion(y):
+        return np.log(y)
+    
+    def reverseConversion(y):
+        return np.exp(y)
+
+
+class log_ofs(object):
+    
+    def forwardConversion(self, y, ofs=200):
+        return np.log(y + ofs)
+    
+    def reverseConversion(self, yl, ofs=200):
+        return np.clip(np.exp(yl) - ofs, 1.0, np.inf)
+
+class powed(object):
+    
+    def forwardConversion(self, y, p=0.5):
+        return y ** p
+    
+    def reverseConversion(self, y, p=0.5):
+        return y ** (1 / p)
+
+class powed_ofs(object):
+
+    def forwardConversion(self, y, p=0.5, ofs=200):
+        return (y + ofs) ** p
+    
+    def reverseConversion(self, y, p=0.5, ofs=200):
+        return np.clip(y ** (1 / p) - ofs, 1.0, np.inf)

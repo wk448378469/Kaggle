@@ -7,7 +7,7 @@ Created on Sat Jul  1 10:47:27 2017
 
 import xgboost as xgb
 import tensorflow as tf
-
+import numpy as np
 
 class XgbWrapper(object):
     
@@ -31,6 +31,7 @@ class SklearnWrapper(object):
         self.clf = clf(**params)
         
     def train(self,x_train,y_train):
+        y_train = y_train.reshape(-1)
         self.clf.fit(x_train,y_train)
     
     def predict(self,x_test):
@@ -85,6 +86,8 @@ class TensorflowWrapper(object):
 
 
     def train(self,x_train,y_train):
+        x_train = x_train.toarray()
+        y_train = y_train.reshape((-1,1))
         self.sess = tf.Session()
         init = tf.global_variables_initializer()
         self.sess.run(init)
@@ -93,4 +96,6 @@ class TensorflowWrapper(object):
             self.sess.run(self.train_op,feed_dict=feed_dict)
             
     def predict(self,x):
-        return self.sess.run(self.pred,feed_dict={self.xs:x})
+        x = x.toarray()
+        feed_dict = {self.xs:x}
+        return self.sess.run(self.pred,feed_dict=feed_dict).reshape(-1)
