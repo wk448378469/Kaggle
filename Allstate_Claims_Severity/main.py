@@ -6,6 +6,9 @@ Created on Sat Jul  1 15:35:32 2017
 """
 import numpy as np
 import pandas as pd
+import convert_target
+import model
+from tqdm import tqdm
 
 from sklearn.metrics import mean_absolute_error
 from sklearn.cross_validation import KFold, train_test_split
@@ -20,44 +23,44 @@ import xgboost as xgb
 from statsmodels.regression.quantile_regression import QuantReg
 
 from dataset import Dataset
-from convert_target import *
+
 
 SEED = 0
+ntrain = 188318
+ntest = 125546
+NFOLDS = 5
+kf = KFold(ntrain,n_folds=5,shuffle=True,random_state=SEED) 
+newTrain = {}
 
-kf = KFold(ntrain,n_folds=5,shuffle=True,random_state=SEED) # 交叉验证用的,分成5份
 
-param = {
-        'et_params' : {
-                        'n_jobs': 16,
-                        'n_estimators': 100,
-                        'max_features': 0.5,
-                        'max_depth': 12,
-                        'min_samples_leaf': 2,
-                        },
+params = {
+        'xgb1' : {
+                    'features': ['numeric','categorical_counts'],
+                    'convert_target':convert_target.norm_y,
+                    'model': model.XgbWrapper(
+                                        seed = SEED,
+                                        params={
+                                        'max_depth': 7,
+                                        'eta': 0.1,
+                                        'colsample_bytree': 0.5,
+                                        'subsample': 0.95,
+                                        'min_child_weight': 5,})
+                    },
 
-        'rf_params': {
-                        'n_jobs': 16,
-                        'n_estimators': 100,
-                        'max_features': 0.2,
-                        'max_depth': 12,
-                        'min_samples_leaf': 2,
-                        },
+        'sk-etr' : {
+                    'features': ['numeric','categorical_counts'],
+                    'convert_target':convert_target.norm_y,
+                    'model': model.SklearnWrapper(
+                                        clf =ExtraTreesRegressor,
+                                        seed = SEED,
+                                        params={
+                                        'max_features':['auto'],
+                                        'min_samples_split': 3 })
+                    }
+}
 
-        'xgb_params':{
-                        'seed': 0,
-                        'colsample_bytree': 0.7,
-                        'silent': 1,
-                        'subsample': 0.7,
-                        'learning_rate': 0.075,
-                        'objective': 'reg:linear',
-                        'max_depth': 4,
-                        'num_parallel_tree': 1,
-                        'min_child_weight': 1,
-                        'eval_metric': 'rmse',
-                        'nrounds': 500
-                        }}
 
-def get_oof(clf):
+def get_oof(clf,x_train,y_train,x_text):
     oof_train = np.zeros((ntrain,))
     oof_test = np.zeros((ntest,))
     oof_test_skf = np.empty((NFOLDS,ntest))
@@ -72,26 +75,39 @@ def get_oof(clf):
     oof_test[:] = oof_test_skf.mean(axis = 0)
     return oof_train.reshape(-1,1) , oof_test.reshape(-1,1)
 
-xg = XgbWrapper(seed = SEED,params=xgb_params)
-et = SklearnWrapper(clf =ExtraTreesRegressor,seed = SEED,params=et_params)
-rf = SklearnWrapper(clf=RandomForestRegressor, seed=SEED, params=rf_params)
-rd = SklearnWrapper(clf=Ridge, seed=SEED, params=rd_params)
-ls = SklearnWrapper(clf=Lasso, seed=SEED, params=ls_params)
 
-xg_oof_train, xg_oof_test = get_oof(xg)
-et_oof_train, et_oof_test = get_oof(et)
-rf_oof_train, rf_oof_test = get_oof(rf)
-rd_oof_train, rd_oof_test = get_oof(rd)
-ls_oof_train, ls_oof_test = get_oof(ls)
+with tqdm(total=len(params),desc='training',unit='cols') as pbar:
 
-print("XG-CV: {}".format(sqrt(mean_squared_error(y_train, xg_oof_train))))
-print("ET-CV: {}".format(sqrt(mean_squared_error(y_train, et_oof_train))))
-print("RF-CV: {}".format(sqrt(mean_squared_error(y_train, rf_oof_train))))
-print("RD-CV: {}".format(sqrt(mean_squared_error(y_train, rd_oof_train))))
-print("LS-CV: {}".format(sqrt(mean_squared_error(y_train, ls_oof_train))))
+    for key in params:
+        features = params[key]['features']
+        convert_target = params[key]['convert_target']
+        model = params[key]['model']
+        
+        # 获取训练数据
+        train_data = []
+        for feature in features:
+            train_data.append(Dataset.load_part('train',feature))
+        
+        y_train = None
+        x_train = None
+        x_text = None
+        # 训练模型
+        oof_train, oof_test = get_oof(model)
 
+        # 打印训练结果
+        print("%s result: %f" % (key, mean_absolute_error(y_train, oof_train)))
+
+        # 将数据添加到合并
+        newTrain[key] = (oof_train,oof_test)
+    
+        pbar.update(1)
+
+# 将newTrain的第一层数据进行合并
 x_train = np.concatenate((xg_oof_train, et_oof_train, rf_oof_train, rd_oof_train, ls_oof_train), axis=1)
 x_test = np.concatenate((xg_oof_test, et_oof_test, rf_oof_test, rd_oof_test, ls_oof_test), axis=1)
+
+
+# 
 
 dtrain = xgb.DMatrix(x_train, label=y_train)
 dtest = xgb.DMatrix(x_test)
