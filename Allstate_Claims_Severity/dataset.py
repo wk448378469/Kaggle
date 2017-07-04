@@ -53,7 +53,6 @@ class Dataset(object):
             'id': 'd1',                             
             'loss': 'd1',
             'numeric': 'd2',
-            'numeric_lin': 'd2',
             'numeric_scaled': 'd2',
             'numeric_boxcox': 'd2',
             'numeric_rank_norm': 'd2',
@@ -62,15 +61,14 @@ class Dataset(object):
             'numeric_unskew': 'd2',
             'categorical': 'd2',
             'categorical_counts': 'd2',
-            'categorical_encoded': 'd2',
             'categorical_dummy': 's2',
             'svd': 'd2',
-            'manual': 'd2',
             'cluster_rbf_25': 'd2',
             'cluster_rbf_50': 'd2',
             'cluster_rbf_75': 'd2',
             'cluster_rbf_100': 'd2',
             'cluster_rbf_200': 'd2',
+            'new': 'd2'
                 }
     
     parts = part_types.keys()

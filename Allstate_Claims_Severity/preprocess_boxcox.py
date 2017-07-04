@@ -13,7 +13,7 @@ from dataset import Dataset
 
 print ('loading...')
 train_num = Dataset.load_part('train','numeric')            # 读取训练集数值型特征
-test_num = Dataset.load_part('train','numeric')             # 读取测试集数值型特征
+test_num = Dataset.load_part('test','numeric')             # 读取测试集数值型特征
 
 # 初始化数据
 train_num_encode = np.zeros(train_num.shape,dtype=np.float32)
