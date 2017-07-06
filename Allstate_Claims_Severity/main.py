@@ -17,8 +17,8 @@ from dataset import Dataset
 
 from sklearn.cross_validation import KFold
 from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import mean_absolute_error
 
-from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 import tensorflow as tf
 
 print ('Begin...')
@@ -144,7 +144,7 @@ params = {
                     },    
 
         'xgb8' : {
-                    'features': ['numeric_boxcox','numeric_scaled','numeric_unskew','categorical_encoded','cluster_rbf_50'],
+                    'features': ['numeric_boxcox','numeric_scaled','numeric_unskew','categorical_counts','cluster_rbf_50'],
                     'convert_target':None,
                     'needScale':True,
                     'model': model.XgbWrapper(
@@ -159,7 +159,7 @@ params = {
                     },
 
         'xgb9' : {
-                    'features': ['numeric','categorical_encoded','cluster_rbf_50','numeric_rank_norm','numeric_edges'],
+                    'features': ['numeric','categorical_dummy','cluster_rbf_50','numeric_rank_norm','numeric_edges'],
                     'convert_target':None,
                     'needScale':True,
                     'model': model.XgbWrapper(
@@ -222,74 +222,36 @@ params = {
                     },
         
         'nn4'   :  {
-                    'features':['numeric_scaled','categorical_counts','cluster_rbf_75','numeric_unskew'],
+                    'features':['numeric_scaled','cluster_rbf_75','numeric_unskew', 'cluster_rbf_200'],
                     'convert_target':convert_target.log_ofs,
                     'needScale':True,
                     'model':model.TensorflowWrapper(
-                            n_step=3000,
-                            input_size=217,
+                            n_step=2000,
+                            input_size=301,
                             learn_rate=0.5,
                             activation_function=tf.nn.elu)
                     },
-
-        'nn5'   :  {
-                    'features':['svd'],
-                    'convert_target':None,
-                    'needScale':False,
-                    'model':model.TensorflowWrapper(
-                            n_step=2000,
-                            input_size=500,
-                            learn_rate=0.4,
-                            activation_function=tf.nn.softplus)
-                    },
         
-        'nn6'   :  {
-                    'features':['svd', 'categorical_counts', 'cluster_rbf_25', 'cluster_rbf_200', 'cluster_rbf_75'],
+        'nn5'   :  {
+                    'features':['svd','cluster_rbf_25'],
                     'convert_target':convert_target.log_ofs,
                     'needScale':False,
                     'model':model.TensorflowWrapper(
                             n_step=2000,
-                            input_size=916,
+                            input_size=525,
                             learn_rate=0.6,
                             activation_function=tf.nn.relu)
                     },
 
-        'nn7'   :  {
-                    'features':['svd','cluster_rbf_25', 'cluster_rbf_50', 'cluster_rbf_75', 'cluster_rbf_100'],
+        'nn6'   :  {
+                    'features':['cluster_rbf_25', 'cluster_rbf_50', 'cluster_rbf_75', 'cluster_rbf_100','cluster_rbf_200'],
                     'convert_target':None,
-                    'needScale':False,
+                    'needScale':True,
                     'model':model.TensorflowWrapper(
-                            n_step=3000,
-                            input_size=750,
+                            n_step=1500,
+                            input_size=450,
                             learn_rate=0.4,
                             activation_function=tf.nn.relu6)
-                    },
-        
-        'sk-gbr' : {
-                    'features': ['svd'],
-                    'convert_target':None,
-                    'needScale':True,
-                    'model': model.SklearnWrapper(
-                                        clf =GradientBoostingRegressor,
-                                        seed = SEED,
-                                        params={
-                                        'loss':'lad',
-                                        'n_estimators':300,
-                                        'max_depth': 7,
-                                        'max_features':0.2,})
-                    },
-                    
-        'sk-rfr':  {
-                    'features': ['svd'],
-                    'convert_target':convert_target.log_ofs,
-                    'needScale':True,
-                    'model': model.SklearnWrapper(
-                                        clf = RandomForestRegressor,
-                                        seed = SEED,
-                                        params={
-                                        'min_samples_split':16,
-                                        'max_features':0.3,
-                                        'max_depth': 26,})
                     },
 }
 
@@ -390,15 +352,23 @@ xgb_params = {
     'eval_metric': 'mae',
 }
 
-res = xgb.cv(xgb_params, newTrain, num_boost_round=1000, nfold=4, seed=SEED, stratified=False,
-             early_stopping_rounds=25, verbose_eval=10, show_stdv=True)
+def xg_eval_mae(yhat, dtrain):
+    y = dtrain.get_label()
+    return 'mae', mean_absolute_error(np.exp(y), np.exp(yhat))
+
+res = xgb.cv(xgb_params, newTrain, num_boost_round=2000, nfold=4, seed=SEED, stratified=False,
+             early_stopping_rounds=25, verbose_eval=10, show_stdv=True, feval=xg_eval_mae, maximize=False)
 
 best_nrounds = res.shape[0] - 1
 cv_mean = res.iloc[-1, 0]
 cv_std = res.iloc[-1, 1]
 
+print('Ensemble-CV: {0}+{1}'.format(cv_mean, cv_std))
+
 gbdt = xgb.train(xgb_params, newTrain, best_nrounds)
 
-submission = pd.read_csv(SUBMISSION_FILE)
-submission.iloc[:, 1] = np.exp(gbdt.predict(newTest))
-submission.to_csv('xgstacker.csv', index=None)
+submission = pd.DataFrame()
+submission['id'] = pd.read_csv('D:/mygit/Kaggle/Allstate_Claims_Severity/test.csv')['id']
+submission['loss'] = np.exp(gbdt.predict(newTest))
+submission.to_csv(SUBMISSION_FILE,index=None)
+
