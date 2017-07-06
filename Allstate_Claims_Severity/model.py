@@ -8,6 +8,7 @@ Created on Sat Jul  1 10:47:27 2017
 import xgboost as xgb
 import tensorflow as tf
 import numpy as np
+import scipy.sparse as sp
 
 class XgbWrapper(object):
     
@@ -35,6 +36,8 @@ class SklearnWrapper(object):
         self.clf.fit(x_train,y_train)
     
     def predict(self,x_test):
+        if sp.issparse(x_test):
+            x_test = x_test.toarray()
         self.clf.predict(x_test)
 
 
