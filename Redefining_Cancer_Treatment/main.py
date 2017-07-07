@@ -39,7 +39,7 @@ def preprocessOne(data):
                 words[index] = stemmer.stem(words[index])
 
             # 删掉停用词
-            words = (i for i in words if i not in stopwords_english)
+            words = (word for word in words if word not in stopwords_english)
                        
             newText = ''
             for word in words:
@@ -53,7 +53,7 @@ def preprocessOne(data):
 
 def preprocessTwo(data,ntrain):
     print ('Tfidf vector ...')
-    tfidf = TfidfVectorizer(ngram_range=(1, 2),stop_words = 'english')
+    tfidf = TfidfVectorizer(stop_words = 'english')
     
     newTrainData = tfidf.fit_transform(data[:ntrain])
     newTextData = tfidf.transform(data[ntrain:])
@@ -63,7 +63,7 @@ def preprocessTwo(data,ntrain):
 def preprocessThree(data,ntrain):
     print ('svd ...')
     
-    featureNum = 150
+    featureNum = 300
     enoughVar = False
     
     while not enoughVar:
@@ -75,7 +75,7 @@ def preprocessThree(data,ntrain):
             enoughVar = True
             testData = svd.transform(data[ntrain:])
         else:
-            featureNum = featureNum + 10
+            featureNum = featureNum + 25
             continue
         
     return np.append(trainData,testData,axis=0)
@@ -124,8 +124,9 @@ if __name__ == '__main__':
     
     # 处理text,长文本数据
     newText = preprocessOne(allData['Text'])
+    print (newText.shape)
     print ('saving long text file ...')
-    newText.to_csv('D:/mygit/Kaggle/Redefining_Cancer_Treatment/newText.csv',index=False, sep=',')
+    newText.to_csv('D:/mygit/Kaggle/Redefining_Cancer_Treatment/newText.csv',index=False, sep='|')
     allData.drop(['Text'],axis=1,inplace=True)
 
     '''
@@ -143,17 +144,19 @@ if __name__ == '__main__':
             maxInt = int(maxInt/10)  
             decrement = True  
         
-    aa = pd.read_csv('D:/mygit/Kaggle/Redefining_Cancer_Treatment/newText.csv', sep=',', engine='python' ,header=None)
+    aa = pd.read_csv('D:/mygit/Kaggle/Redefining_Cancer_Treatment/newText.csv', sep='|', engine='python' ,header=None)
     '''
     
     # tfidf特征创建
     tfidfData = preprocessTwo(newText,ntrain)
+    print (tfidfData.shape)
     filename = 'D:/mygit/Kaggle/Redefining_Cancer_Treatment/tfidfData'
     print ('saving tfidf data ...')
     np.savez_compressed(filename,data=tfidfData.data,indices=tfidfData.indices,indptr=tfidfData.indptr,shape=tfidfData.shape)
 
     # tfidf特征降维
     svdData = preprocessThree(tfidfData,ntrain)
+    print (svdData.shape)
     print ('saving svd data ...')
     svdData = pd.DataFrame(svdData)
     svdData.to_csv('D:/mygit/Kaggle/Redefining_Cancer_Treatment/svdData.csv',index=False)
