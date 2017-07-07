@@ -198,30 +198,8 @@ params = {
                             learn_rate=0.7,
                             activation_function=tf.nn.relu)
                     },
-
+        
         'nn2'   :  {
-                    'features':['numeric_scaled','categorical_counts','cluster_rbf_200'],
-                    'convert_target':convert_target.log_ofs,
-                    'needScale':True,
-                    'model':model.TensorflowWrapper(
-                            n_step=2500,
-                            input_size=330,
-                            learn_rate=0.4,
-                            activation_function=tf.nn.tanh)
-                    },
-        
-        'nn3'   :  {
-                    'features':['numeric_scaled','categorical_dummy'],
-                    'convert_target':convert_target.log_ofs,
-                    'needScale':True,
-                    'model':model.TensorflowWrapper(
-                            n_step=2000,
-                            input_size=944,
-                            learn_rate=0.4,
-                            activation_function=tf.nn.sigmoid)
-                    },
-        
-        'nn4'   :  {
                     'features':['numeric_scaled','cluster_rbf_75','numeric_unskew', 'cluster_rbf_200'],
                     'convert_target':convert_target.log_ofs,
                     'needScale':True,
@@ -230,28 +208,6 @@ params = {
                             input_size=301,
                             learn_rate=0.5,
                             activation_function=tf.nn.elu)
-                    },
-        
-        'nn5'   :  {
-                    'features':['svd','cluster_rbf_25'],
-                    'convert_target':convert_target.log_ofs,
-                    'needScale':False,
-                    'model':model.TensorflowWrapper(
-                            n_step=2000,
-                            input_size=525,
-                            learn_rate=0.6,
-                            activation_function=tf.nn.relu)
-                    },
-
-        'nn6'   :  {
-                    'features':['cluster_rbf_25', 'cluster_rbf_50', 'cluster_rbf_75', 'cluster_rbf_100','cluster_rbf_200'],
-                    'convert_target':None,
-                    'needScale':True,
-                    'model':model.TensorflowWrapper(
-                            n_step=1500,
-                            input_size=450,
-                            learn_rate=0.4,
-                            activation_function=tf.nn.relu6)
                     },
 }
 
