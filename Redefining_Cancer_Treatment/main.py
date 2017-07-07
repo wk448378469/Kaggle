@@ -30,7 +30,7 @@ def preprocessOne(data):
             # 分词
             words = nltk.tokenize.word_tokenize(text,language='english')
             # 去掉标点符号和长度小于2的单词
-            words = [x for x in words if len(x) > 2]
+            words = [word for word in words if len(word) > 2]
             # 小写化
             words = [x.lower() for x in words]
  
@@ -40,12 +40,12 @@ def preprocessOne(data):
 
             # 删掉停用词
             words = (word for word in words if word not in stopwords_english)
-                       
+            
             newText = ''
-            for word in words:
-                newText = newText + ' ' + word
+            for new in words:
+                newText = newText + ' ' + new
         
-            data[i] = newText
+            data.values[i] = newText
             
             pbar.update(1)
             
@@ -63,7 +63,7 @@ def preprocessTwo(data,ntrain):
 def preprocessThree(data,ntrain):
     print ('svd ...')
     
-    featureNum = 300
+    featureNum = 350
     enoughVar = False
     
     while not enoughVar:
@@ -75,7 +75,7 @@ def preprocessThree(data,ntrain):
             enoughVar = True
             testData = svd.transform(data[ntrain:])
         else:
-            featureNum = featureNum + 25
+            featureNum = featureNum + 50
             continue
         
     return np.append(trainData,testData,axis=0)
