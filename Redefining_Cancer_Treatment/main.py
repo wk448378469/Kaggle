@@ -5,8 +5,6 @@ Created on Thu Jun 29 10:58:41 2017
 @author: 凯风
 """
 
-# 读取数据
-
 def loadData():
     
     print ('loading original data...')
@@ -22,11 +20,12 @@ def loadData():
     return train,test
 
 def preprocessOne(data):
+ 
+    stopwords_english = nltk.corpus.stopwords.words('english')
+    stemmer = nltk.stem.snowball.PortugueseStemmer(ignore_stopwords=True)
     
     with tqdm(total=len(data),desc='preprocessing',unit='cols') as pbar:
-        stopwords_english = nltk.corpus.stopwords.words('english')
-        stemmer = nltk.stem.snowball.PortugueseStemmer(ignore_stopwords=True)
-        
+    
         for i,text in enumerate(data):
             # 分词
             words = nltk.tokenize.word_tokenize(text,language='english')
@@ -36,8 +35,8 @@ def preprocessOne(data):
             words = [x.lower() for x in words]
  
             # 词干处理
-            for i in range(len(words)):
-                words[i] = stemmer.stem(words[i])
+            for index in range(len(words)):
+                words[index] = stemmer.stem(words[index])
 
             # 删掉停用词
             words = (i for i in words if i not in stopwords_english)
@@ -45,9 +44,7 @@ def preprocessOne(data):
             newText = ''
             for word in words:
                 newText = newText + ' ' + word
-            
-            del words
-            
+        
             data[i] = newText
             
             pbar.update(1)
@@ -66,7 +63,7 @@ def preprocessTwo(data,ntrain):
 def preprocessThree(data,ntrain):
     print ('svd ...')
     
-    featureNum = 250
+    featureNum = 150
     enoughVar = False
     
     while not enoughVar:
@@ -126,20 +123,39 @@ if __name__ == '__main__':
     del train,test
     
     # 处理text,长文本数据
-    allData['Text'] = preprocessOne(allData['Text'])
+    newText = preprocessOne(allData['Text'])
     print ('saving long text file ...')
-    allData['Text'].to_csv('D:/mygit/Kaggle/Redefining_Cancer_Treatment/text.csv',index=False)
+    newText.to_csv('D:/mygit/Kaggle/Redefining_Cancer_Treatment/newText.csv',index=False, sep=',')
+    allData.drop(['Text'],axis=1,inplace=True)
+
+    '''
+    # 读取数据的方法，主要是解决文件限制的
+    import sys  
+    import csv  
+    maxInt = sys.maxsize  
+    decrement = True  
+      
+    while decrement:  
+        decrement = False  
+        try:  
+            csv.field_size_limit(maxInt)  
+        except OverflowError:  
+            maxInt = int(maxInt/10)  
+            decrement = True  
+        
+    aa = pd.read_csv('D:/mygit/Kaggle/Redefining_Cancer_Treatment/newText.csv', sep=',', engine='python' ,header=None)
+    '''
     
     # tfidf特征创建
-    tfidfData = preprocessTwo(allData['Text'],ntrain)
+    tfidfData = preprocessTwo(newText,ntrain)
     filename = 'D:/mygit/Kaggle/Redefining_Cancer_Treatment/tfidfData'
     print ('saving tfidf data ...')
     np.savez_compressed(filename,data=tfidfData.data,indices=tfidfData.indices,indptr=tfidfData.indptr,shape=tfidfData.shape)
-    allData.drop(['Text'],axis=1,inplace=True)
 
     # tfidf特征降维
-    svdData = preprocessThree(tfidfData)
+    svdData = preprocessThree(tfidfData,ntrain)
     print ('saving svd data ...')
+    svdData = pd.DataFrame(svdData)
     svdData.to_csv('D:/mygit/Kaggle/Redefining_Cancer_Treatment/svdData.csv',index=False)
     del tfidfData,svdData
 
