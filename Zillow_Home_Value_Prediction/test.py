@@ -33,7 +33,7 @@ df_train = train.merge(prop, how='left', on='parcelid')
 df_train.fillna(df_train.median(),inplace = True)
 # 删掉没用的特征
 x_train = df_train.drop(['parcelid', 'logerror', 'transactiondate', 'propertyzoningdesc', 
-                         'propertycountylandusecode', 'fireplaceflag','fips'], axis=1)
+                         'propertycountylandusecode', 'fireplaceflag','fireplacecnt'], axis=1)
 y_train = df_train['logerror'].values
 
 # 特征名称保存
@@ -58,7 +58,7 @@ params = {
         'learning_rate':0.0021,
         'boosting_type':'gbdt',
         'objective':'regression',
-        'metric':'mae',
+        'metric':'l1',
         'sub_feature':0.5,
         'bagging_fraction':0.85,
         'bagging_freq':40,
@@ -69,7 +69,7 @@ params = {
         'num_threads':1
         }
 # lightGBM train
-num_boost_round = 400
+num_boost_round = 430
 clf = lgb.train(params, d_train, num_boost_round=num_boost_round)
 
 # 清内存
@@ -103,7 +103,6 @@ del x_test; gc.collect()
 
 
 
-
 ### xgboost
 print( "\nReading data again...")
 properties = pd.read_csv('D:/mygit/Kaggle/Zillow_Home_Value_Prediction/properties_2016.csv')
@@ -127,7 +126,7 @@ x_test = properties.drop(['parcelid'], axis=1)
 
 # 丢弃掉训练数据的一些异常值
 train_df=train_df[ train_df.logerror > -0.4 ]       # (train_df.logerror < -0.4).sum() 大约700个样本
-train_df=train_df[ train_df.logerror < 0.418 ]
+train_df=train_df[ train_df.logerror < 0.419 ]
 
 # 准备xgboost的数据
 x_train=train_df.drop(['parcelid', 'logerror','transactiondate'], axis=1)
@@ -135,8 +134,9 @@ y_train = train_df["logerror"].values.astype(np.float32)
 y_mean = np.mean(y_train)
 dtrain = xgb.DMatrix(x_train, y_train)
 dtest = xgb.DMatrix(x_test)
-
+    
 # xgboost的超参数
+'''
 xgb_params = {
     'eta': 0.037,
     'max_depth': 5,
@@ -144,14 +144,24 @@ xgb_params = {
     'objective': 'reg:linear',
     'eval_metric': 'mae',
     'lambda': 0.8,   
-    'alpha': 0.39945, 
+    'alpha': 0.4, 
     'base_score': y_mean,
     'silent': 1
+}'''
+xgb_params = {
+    'eta': 0.01,
+    'max_depth': 4,
+    'min_child_weight':7,
+    'subsample': 0.65,
+    'colsample_bytree':0.9,
+    'eval_metric': 'mae',
+    'base_score': y_mean,
+    'silent': 0
 }
 
 # xgboost 训练
-num_boost_rounds = 255
-model = xgb.train(dict(xgb_params, silent=1), dtrain, num_boost_round=num_boost_rounds)
+num_boost_rounds = 242
+model = xgb.train(xgb_params, dtrain, num_boost_round=num_boost_rounds)
 
 # xgboost 预测
 xgb_pred = model.predict(dtest)
@@ -213,9 +223,9 @@ test_dates = ['2016-10-01','2016-11-01','2016-12-01','2017-10-01','2017-11-01','
 test_columns = ['201610','201611','201612','201710','201711','201712']
 
 # 不同结果的比重
-XGB_WEIGHT = 0.6235
-BASELINE_WEIGHT = 0.0053
-OLS_WEIGHT = 0.0505
+XGB_WEIGHT = 0.6266
+BASELINE_WEIGHT = 0.0056
+OLS_WEIGHT = 0.0550
 
 # 基于训练数据的基准平均值
 BASELINE_PRED = 0.0115
@@ -225,6 +235,7 @@ lgb_weight = (1 - XGB_WEIGHT - BASELINE_WEIGHT) / (1 - OLS_WEIGHT)
 xgb_weight0 = XGB_WEIGHT / (1 - OLS_WEIGHT)
 baseline_weight0 =  BASELINE_WEIGHT / (1 - OLS_WEIGHT)
 pred0 = xgb_weight0*xgb_pred + baseline_weight0*BASELINE_PRED + lgb_weight*lgb_pred
+
 for i in range(len(test_dates)): # 迭代全部需要预测的日期
     # 将测试集中的transactiondate转换成需要预测的日期
     test['transactiondate'] = test_dates[i]
