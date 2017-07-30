@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Jul 19 18:43:40 2017
+Created on Sun Jul 30 09:58:39 2017
 
 @author: 凯风
 """
@@ -17,7 +17,10 @@ from datetime import datetime
 
 # 读取数据
 print( "\nReading data ...")
-prop = pd.read_csv('D:/mygit/Kaggle/Zillow_Home_Value_Prediction/properties_2016.csv')
+prop = pd.read_csv('D:/mygit/Kaggle/Zillow_Home_Value_Prediction/newFeaturesbyMyself.csv')
+aa = pd.read_csv('D:/mygit/Kaggle/Zillow_Home_Value_Prediction/properties_2016.csv')
+prop['parcelid'] = aa['parcelid']
+del aa ; gc.collect()
 train = pd.read_csv("D:/mygit/Kaggle/Zillow_Home_Value_Prediction/train_2016_v2.csv")
 
 ### lightGBM
@@ -27,26 +30,22 @@ for c, dtype in zip(prop.columns, prop.dtypes):
         # 降低数据在内存的占比
         prop[c] = prop[c].astype(np.float32)
 
+#删除掉没用的一个
+prop.drop([prop.columns[0]],axis=1,inplace=True)
+
 # 合并数据，train中的parcelid是连接键
 df_train = train.merge(prop, how='left', on='parcelid')
-# 以每一列（每个特征）的中位数来填充缺失数据
-df_train.fillna(df_train.median(),inplace = True)
+
 # 删掉没用的特征
-x_train = df_train.drop(['parcelid', 'logerror', 'transactiondate', 'propertyzoningdesc', 
-                         'propertycountylandusecode', 'fireplaceflag','fireplacecnt'], axis=1)
+x_train = df_train.drop(['parcelid', 'logerror', 'transactiondate'], axis=1)
 y_train = df_train['logerror'].values
 
 # 特征名称保存
 train_columns = x_train.columns
 
-# 标称型数据的处理
-for c in x_train.dtypes[x_train.dtypes == object].index.values:
-    x_train[c] = (x_train[c] == True)
-
 # 删除数据，不占内存
 del df_train; gc.collect()
 
-# hashottuborspa和另外一个特征转化成浮点数，true = 1 \ false = 0
 # 将数据转换成numpy的array
 # 将数据转换成lightGBM的数据格式
 x_train = x_train.values.astype(np.float32, copy=False)
@@ -89,12 +88,6 @@ x_test = df_test[train_columns]
 # 清内存
 del df_test; gc.collect()
 
-# 把数据类型是obeject的转换成数值型
-# 转换所有的预测数据为array
-for c in x_test.dtypes[x_test.dtypes == object].index.values:
-    x_test[c] = (x_test[c] == True)
-x_test = x_test.values.astype(np.float32, copy=False)
-
 # 预测
 lgb_pred = clf.predict(x_test)
 
@@ -105,18 +98,11 @@ del x_test; gc.collect()
 
 ### xgboost
 print( "\nReading data again...")
-properties = pd.read_csv('D:/mygit/Kaggle/Zillow_Home_Value_Prediction/properties_2016.csv')
-
-
-print("\n Xgboost working...")
-for c in properties.columns:
-    # 填补缺失值为-1，xgboost推荐的
-    properties[c]=properties[c].fillna(-1)
-    if properties[c].dtype == 'object':
-        # 如果是字符串，则LabelEndoder
-        lbl = LabelEncoder()
-        lbl.fit(list(properties[c].values))
-        properties[c] = lbl.transform(list(properties[c].values))
+properties = pd.read_csv('D:/mygit/Kaggle/Zillow_Home_Value_Prediction/newFeaturesbyMyself.csv')
+properties.drop([properties.columns[0]],axis=1,inplace=True)
+aa = pd.read_csv('D:/mygit/Kaggle/Zillow_Home_Value_Prediction/properties_2016.csv')
+properties['parcelid'] = aa['parcelid']
+del aa ; gc.collect()
 
 # 合并数据
 train_df = train.merge(properties, how='left', on='parcelid')
@@ -181,7 +167,10 @@ np.random.seed(17)
 random.seed(17)
 
 train = pd.read_csv("D:/mygit/Kaggle/Zillow_Home_Value_Prediction/train_2016_v2.csv", parse_dates=["transactiondate"])
-properties = pd.read_csv("D:/mygit/Kaggle/Zillow_Home_Value_Prediction/properties_2016.csv")
+properties = pd.read_csv("D:/mygit/Kaggle/Zillow_Home_Value_Prediction/newFeaturesbyMyself.csv")
+aa = pd.read_csv('D:/mygit/Kaggle/Zillow_Home_Value_Prediction/properties_2016.csv')
+properties['parcelid'] = aa['parcelid']
+del aa ; gc.collect()
 submission = pd.read_csv("D:/mygit/Kaggle/Zillow_Home_Value_Prediction/sample_submission.csv")
 
 def get_features(df):
@@ -231,7 +220,6 @@ OLS_WEIGHT = 0.0550
 BASELINE_PRED = 0.0115
 
 # 结合数据
-# Use y=ax^2 + bx + c
 lgb_weight = (1 - XGB_WEIGHT - BASELINE_WEIGHT) / (1 - OLS_WEIGHT)
 xgb_weight0 = XGB_WEIGHT / (1 - OLS_WEIGHT)
 baseline_weight0 =  BASELINE_WEIGHT / (1 - OLS_WEIGHT)
