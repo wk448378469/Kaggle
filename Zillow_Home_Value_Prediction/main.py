@@ -27,7 +27,7 @@ class StackingAverageModels(BaseEstimator,RegressorMixin,TransformerMixin):
         self.meta_model = meta_model
         self.n_fold = n_fold
     
-    def fit(self,X,y):
+    def fit(self,X,y,y_test):
         self.base_models_ = [list() for x in self.base_models]
         self.meta_model_ = clone(self.meta_model)
         kfold = KFold(n_splits=self.n_fold,shuffle=True)
@@ -38,6 +38,8 @@ class StackingAverageModels(BaseEstimator,RegressorMixin,TransformerMixin):
                 self.base_models_[i].append(instance)
                 instance.fit(X[train_index],y[train_index])
                 y_pred = instance.predict(X[holdout_index])
+                mae = np.sum([abs(y_test[i]-y_pred[i]) for i in range(len(y_test))]) / len(y_test)
+                print ('{model} model result : {result} '.format(model = 'basemodel-%s' % i ,result = mae))
                 out_of_fold_predictions[holdout_index,i] = y_pred
         self.meta_model_.fit(out_of_fold_predictions,y)
         return self
@@ -57,35 +59,45 @@ class EnsemblingStacked(object):
         self.LRModel.fit(self.get_features(train.drop(['parcelid','logerror'],axis=1)),train['logerror'])
         y = train['logerror'].values
         X = train.drop(['parcelid','logerror','transactiondate'],axis=1).get_values()
-        
         self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(X, y, test_size=0.05, random_state=42)
         del X,y;gc.collect()
-        
+            # learning_rate =0.01
+            # max_depth=4
+            # min_child_weight=7
+            # gamma=0
+            # subsample=0.65
+            # colsample_bytree=0.9
+            # scale_pos_weight = 1
     def xgboostModel(self):
         y_mean = np.mean(self.y_train)
         xgb_params_1 = {
+                        'eta': 0.01,
+                        'max_depth': 4,
+                        'subsample': 0.65,
+                        'eval_metric': 'mae',
+                        'min_child_weight': 7,
+                        'gamma':0,
+                        'seed':1314,
+                        'colsample_bytree':0.9,
+                        'base_score': y_mean,
+                        }
+        xgb_params_2 = {
                         'eta': 0.037,
                         'max_depth': 5,
                         'subsample': 0.80,
                         'eval_metric': 'mae',
-                        'lambda': 0.8,   
-                        'alpha': 0.4, 
-                        'base_score': y_mean,
-                        }
-        xgb_params_2 = {
-                        'eta': 0.033,
-                        'max_depth': 6,
-                        'subsample': 0.8,
-                        'eval_metric': 'mae',
+                        'lambda':0.8,
+                        'seed':123456,
+                        'alpha':0.4,
                         'base_score': y_mean,
                         }
         dtrain = xgb.DMatrix(self.X_train, self.y_train)
         dtest = xgb.DMatrix(self.X_test)
-        model1 = xgb.train(dict(xgb_params_1, silent=1), dtrain, num_boost_round=250)
-        model2 = xgb.train(dict(xgb_params_2, silent=1), dtrain, num_boost_round=130)
+        model1 = xgb.train(dict(xgb_params_1, silent=1), dtrain, num_boost_round=350)
+        model2 = xgb.train(dict(xgb_params_2, silent=1), dtrain, num_boost_round=250)
         xgb_pred1 = model1.predict(dtest)
         xgb_pred2 = model2.predict(dtest)
-        xgb_pred = xgb_pred1 * 0.8083 + xgb_pred2 * 0.1917
+        xgb_pred = (xgb_pred1 + xgb_pred2) / 2
         print ('xgboost model result : {result} '.format(result = self.MAE(xgb_pred)))
         del dtrain,dtest,xgb_params_1,xgb_params_2,xgb_pred ; gc.collect()
         
@@ -96,20 +108,21 @@ class EnsemblingStacked(object):
     
     def lgbModel(self):
         params = {'max_bin':10,
-                  'learning_rate':0.0021,
+                  'learning_rate':0.002,
                   'boosting_type':'gbdt',
                   'objective':'regression',
                   'metric':'l1',
                   'sub_feature':0.5,
-                  'bagging_fraction':0.85,
-                  'bagging_freq':40,
-                  'num_leaves':512,
+                  'bagging_fraction':0.7,
+                  'bagging_freq':20,
+                  'num_leaves':60,
                   'min_data':500,
                   'min_hessian':0.05,
                   'verbose':0,
-                  'num_threads':1}
+                  'num_threads':1
+                  }
         d_train = lgb.Dataset(self.X_train,label=self.y_train)
-        clf = lgb.train(params, d_train, num_boost_round=430)
+        clf = lgb.train(params, d_train, num_boost_round=500)
         lgb_pred = clf.predict(self.X_test)
         print ('lightGBM model result : {result} '.format(result = self.MAE(lgb_pred)))
         del d_train,lgb_pred;gc.collect()
@@ -130,7 +143,7 @@ class EnsemblingStacked(object):
         
         # 调用实例
         models = StackingAverageModels(base_models = (ENet, GBoost, rigde , etr ,rfc), meta_model = lasso)
-        models.fit(self.X_train, self.y_train)
+        models.fit(self.X_train, self.y_train , self.y_test)
         stack_pred = models.predict(self.X_test)
         print ('stack model result : {result} '.format(result = self.MAE(stack_pred)))
         

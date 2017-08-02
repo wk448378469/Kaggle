@@ -1,2 +1,43 @@
+说明：
+	a1: xgboost权重
+	a2: bias权重
+	a3: bias预测值
+	a4: OLS权重
+	a5: stacking权重
+
+	lightGBM权重 = 1 - a1 - a2 - a5
+
 第一轮：
-python main.py -f newFeaturesbyMyself.csv -a1 0.5840 -a2 0.0056 -a3 0.0115 -a4 0.050 -a5 0.2052      LB 0.0644971
+python main.py -f newFeaturesbyMyself.csv -a1 0.5840 -a2 0.0056 -a3 0.0115 -a4 0.050 -a5 0.2052      LB 0.0645204
+
+
+第二轮： 调整内部参数
+python main.py -f newFeaturesbyMyself.csv -a1 0.5840 -a2 0.0056 -a3 0.0115 -a4 0.050 -a5 0.2052      LB 0.0645571
+xgboost model result     : 0.051894448752803315
+lightGBM model result    : 0.0519616252467274
+basemodel-0 model result : 0.05248570218704431
+basemodel-0 model result : 0.05247659726004359
+basemodel-0 model result : 0.052483649027498254
+basemodel-0 model result : 0.052527617022353375
+basemodel-0 model result : 0.05249471085378104
+basemodel-1 model result : 0.05357611993671832
+basemodel-1 model result : 0.05340012364264545
+basemodel-1 model result : 0.0535300204079823
+basemodel-1 model result : 0.05330915748219162
+basemodel-1 model result : 0.053395885564504045
+basemodel-2 model result : 0.05371743943132152
+basemodel-2 model result : 0.053588262670414735
+basemodel-2 model result : 0.05364722478949034
+basemodel-2 model result : 0.05366165685465703
+basemodel-2 model result : 0.05380161887580474
+basemodel-3 model result : 0.06127907188841202
+basemodel-3 model result : 0.061478849954822674
+basemodel-3 model result : 0.06137965128755364
+basemodel-3 model result : 0.06052672351479558
+basemodel-3 model result : 0.06106270188615315
+basemodel-4 model result : 0.05801686457506427
+basemodel-4 model result : 0.058633930411306184
+basemodel-4 model result : 0.05868579231374378
+basemodel-4 model result : 0.0583316776572084
+basemodel-4 model result : 0.05856102906854208
+stack model result       : 0.05249289508454487
