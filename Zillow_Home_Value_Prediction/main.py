@@ -13,13 +13,12 @@ import gc
 from sklearn.linear_model import LinearRegression
 import random
 from datetime import datetime
-from sklearn.linear_model import ElasticNet, Lasso,  BayesianRidge, LassoLarsIC
-from sklearn.ensemble import RandomForestRegressor,  GradientBoostingRegressor
-from sklearn.kernel_ridge import KernelRidge
+from sklearn.linear_model import ElasticNet,Lasso,Ridge
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor, ExtraTreesRegressor
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import RobustScaler
 from sklearn.base import BaseEstimator, TransformerMixin, RegressorMixin, clone
-from sklearn.model_selection import KFold, cross_val_score, train_test_split
+from sklearn.model_selection import KFold, train_test_split
 import argparse
 
 class StackingAverageModels(BaseEstimator,RegressorMixin,TransformerMixin):
@@ -53,46 +52,40 @@ class StackingAverageModels(BaseEstimator,RegressorMixin,TransformerMixin):
 
 class EnsemblingStacked(object):
     def __init__(self,train,properties,submission):
-        properties['transactiondate'] = '2016-07-29'
-        self.LRModel = LinearRegression(n_jobs=4)
+        self.LRModel = LinearRegression(n_jobs=-1)
+        self.LRModelColumns = []
         self.LRModel.fit(self.get_features(train.drop(['parcelid','logerror'],axis=1)),train['logerror'])
-        
         y = train['logerror'].values
         X = train.drop(['parcelid','logerror','transactiondate'],axis=1).get_values()
         
         self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(X, y, test_size=0.05, random_state=42)
         del X,y;gc.collect()
-
+        
     def xgboostModel(self):
         y_mean = np.mean(self.y_train)
         xgb_params_1 = {
                         'eta': 0.037,
                         'max_depth': 5,
                         'subsample': 0.80,
-                        'objective': 'reg:linear',
                         'eval_metric': 'mae',
                         'lambda': 0.8,   
                         'alpha': 0.4, 
                         'base_score': y_mean,
-                        'silent': 1
                         }
         xgb_params_2 = {
-                        'eta': 0.01,
-                        'max_depth': 4,
-                        'min_child_weight':7,
-                        'subsample': 0.65,
-                        'colsample_bytree':0.9,
+                        'eta': 0.033,
+                        'max_depth': 6,
+                        'subsample': 0.8,
                         'eval_metric': 'mae',
                         'base_score': y_mean,
-                        'silent': 0
                         }
         dtrain = xgb.DMatrix(self.X_train, self.y_train)
         dtest = xgb.DMatrix(self.X_test)
         model1 = xgb.train(dict(xgb_params_1, silent=1), dtrain, num_boost_round=250)
-        model2 = xgb.train(dict(xgb_params_2, silent=1), dtrain, num_boost_round=150)
+        model2 = xgb.train(dict(xgb_params_2, silent=1), dtrain, num_boost_round=130)
         xgb_pred1 = model1.predict(dtest)
         xgb_pred2 = model2.predict(dtest)
-        xgb_pred = (xgb_pred1 + xgb_pred2) / 2
+        xgb_pred = xgb_pred1 * 0.8083 + xgb_pred2 * 0.1917
         print ('xgboost model result : {result} '.format(result = self.MAE(xgb_pred)))
         del dtrain,dtest,xgb_params_1,xgb_params_2,xgb_pred ; gc.collect()
         
@@ -128,15 +121,15 @@ class EnsemblingStacked(object):
 
     def stackModel(self):
         # basemodel
-        lasso = make_pipeline(RobustScaler(), Lasso(alpha =0.0005, random_state=1))
-        ENet = make_pipeline(RobustScaler(), ElasticNet(alpha=0.0005, l1_ratio=.9, random_state=3))
-        GBoost = GradientBoostingRegressor(n_estimators=1000, learning_rate=0.05,
-                                   max_depth=4, max_features='sqrt',
-                                   min_samples_leaf=15, min_samples_split=10, 
-                                   loss='huber', random_state =5)
+        lasso = make_pipeline(RobustScaler(), Lasso(alpha =1, random_state=77))
+        ENet = make_pipeline(RobustScaler(), ElasticNet(alpha=0.9, l1_ratio=.5, random_state=3))
+        rfc = RandomForestRegressor(n_estimators=50,random_state=14,n_jobs=-1)
+        etr = ExtraTreesRegressor(n_estimators=40,n_jobs=-1,random_state=22)
+        rigde = make_pipeline(RobustScaler(), Ridge(alpha =0.7,random_state=33))
+        GBoost = GradientBoostingRegressor(n_estimators=150, loss='huber', random_state =5)
         
         # 调用实例
-        models = StackingAverageModels(base_models = (ENet, GBoost), meta_model = lasso)
+        models = StackingAverageModels(base_models = (ENet, GBoost, rigde , etr ,rfc), meta_model = lasso)
         models.fit(self.X_train, self.y_train)
         stack_pred = models.predict(self.X_test)
         print ('stack model result : {result} '.format(result = self.MAE(stack_pred)))
@@ -153,6 +146,10 @@ class EnsemblingStacked(object):
         df["transactiondate_year"] = df["transactiondate"].dt.year
         df["transactiondate_month"] = df["transactiondate"].dt.month
         df['transactiondate'] = df['transactiondate'].dt.quarter
+        if len(self.LRModelColumns) == 0:
+            self.LRModelColumns = df.columns
+        else:
+            df = df.reindex(columns = self.LRModelColumns)
         return df
     
     def conbine(self):
@@ -169,6 +166,7 @@ class EnsemblingStacked(object):
         test_dates = ['2016-10-01','2016-11-01','2016-12-01','2017-10-01','2017-11-01','2017-12-01']
         test_columns = ['201610','201611','201612','201710','201711','201712']
         properties.drop(['parcelid'],axis=1,inplace=True)
+        
         for i in range(len(test_dates)): 
             properties['transactiondate'] = test_dates[i]
             pred = args.OLS_WEIGHT * self.LRModel.predict(self.get_features(properties)) + (1 - args.OLS_WEIGHT) * basePred
@@ -183,12 +181,26 @@ if __name__ == '__main__':
     # 定义命令参数
     parser = argparse.ArgumentParser()
     parser.add_argument('-f', '--datafile', default='D:/mygit/Kaggle/Zillow_Home_Value_Prediction/newFeaturesbyMyself.csv', help='the path to the feature data file')
-    parser.add_argument('-a1', '--XGB_WEIGHT', default=0.25, help='xgboost weight')
-    parser.add_argument('-a2', '--BASELINE_WEIGHT', default=0.25, help='baseline weight')
+    parser.add_argument('-a1', '--XGB_WEIGHT', default=0.5840, help='xgboost weight')
+    parser.add_argument('-a2', '--BASELINE_WEIGHT', default=0.0056, help='baseline weight')
     parser.add_argument('-a3', '--BASELINE_PRED', default=0.0115, help='baseline predict')
-    parser.add_argument('-a4', '--OLS_WEIGHT', default=0.05, help='ols weight')
-    parser.add_argument('-a5', '--STACK_WEIGHT', default=0.25, help='stacking model weight')
+    parser.add_argument('-a4', '--OLS_WEIGHT', default=0.050, help='ols weight')
+    parser.add_argument('-a5', '--STACK_WEIGHT', default=0.2052, help='stacking model weight')
     args = parser.parse_args()
+    
+    #随机器
+    np.random.seed(63)
+    random.seed(36)
+
+    # 确保输出的参数合法
+    try:
+        args.XGB_WEIGHT = float(args.XGB_WEIGHT)
+        args.BASELINE_WEIGHT = float(args.BASELINE_WEIGHT)
+        args.BASELINE_PRED = float(args.BASELINE_PRED)
+        args.OLS_WEIGHT = float(args.OLS_WEIGHT)
+        args.STACK_WEIGHT = float(args.STACK_WEIGHT)
+    except:
+        raise('Unrecognized args')
     
     # 读取数据
     train = pd.read_csv("D:/mygit/Kaggle/Zillow_Home_Value_Prediction/train_2016_v2.csv", parse_dates=["transactiondate"])
@@ -197,6 +209,10 @@ if __name__ == '__main__':
     
     # 处理下数据
     train = pd.merge(train, properties, how='left', on='parcelid')
-
+    properties['transactiondate'] = '2016-07-29'
+    train = train[ train.logerror > -0.4 ]
+    train = train[ train.logerror < 0.419 ]
+    
+    
     ES = EnsemblingStacked(train,properties,submission)
     ES.conbine()
