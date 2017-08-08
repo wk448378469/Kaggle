@@ -41,3 +41,157 @@ basemodel-4 model result : 0.05868579231374378
 basemodel-4 model result : 0.0583316776572084
 basemodel-4 model result : 0.05856102906854208
 stack model result       : 0.05249289508454487
+
+第三轮：
+python main.py -f newFeaturesbyMyself.csv -a1 0.4840 -a2 0.0031 -a3 0.0095 -a4 0.040 -a5 0.2052      LB 0.0645886
+xgboost model result     : 0.051894448752803315
+lightGBM model result 	 : 0.0519616252467274
+basemodel-0 model result : 0.05248570218704431
+basemodel-0 model result : 0.05247659726004359
+basemodel-0 model result : 0.052483649027498254
+basemodel-0 model result : 0.052527617022353375
+basemodel-0 model result : 0.05249471085378104
+basemodel-1 model result : 0.05357611993671832
+basemodel-1 model result : 0.05340012364264545
+basemodel-1 model result : 0.0535300204079823
+basemodel-1 model result : 0.05330915748219162
+basemodel-1 model result : 0.053395885564504045
+basemodel-2 model result : 0.05371743943132152
+basemodel-2 model result : 0.053588262670414735
+basemodel-2 model result : 0.05364722478949034
+basemodel-2 model result : 0.05366165685465703
+basemodel-2 model result : 0.05380161887580474
+basemodel-3 model result : 0.06127907188841202
+basemodel-3 model result : 0.061478849954822674
+basemodel-3 model result : 0.06137965128755364
+basemodel-3 model result : 0.06052672351479558
+basemodel-3 model result : 0.06106270188615315
+basemodel-4 model result : 0.05801686457506427
+basemodel-4 model result : 0.058633930411306184
+basemodel-4 model result : 0.05868579231374378
+basemodel-4 model result : 0.0583316776572084
+basemodel-4 model result : 0.05856102906854208
+stack model result 	 : 0.05249289508454487
+
+第三轮：
+python main.py                                                                                 LB     0.0644931
+xgboost model result 	 : 0.0519318830007208
+lightGBM model result 	 : 0.05199765083791809
+basemodel-0 model result : 0.05248570218704431
+basemodel-0 model result : 0.05247659726004359
+basemodel-0 model result : 0.052483649027498254
+basemodel-0 model result : 0.052527617022353375
+basemodel-0 model result : 0.05249471085378104
+basemodel-1 model result : 0.05357611993671832
+basemodel-1 model result : 0.05340012364264545
+basemodel-1 model result : 0.0535300204079823
+basemodel-1 model result : 0.05330915748219162
+basemodel-1 model result : 0.053395885564504045
+basemodel-2 model result : 0.05371743943132152
+basemodel-2 model result : 0.053588262670414735
+basemodel-2 model result : 0.05364722478949034
+basemodel-2 model result : 0.05366165685465703
+basemodel-2 model result : 0.05380161887580474
+basemodel-3 model result : 0.06127907188841202
+basemodel-3 model result : 0.061478849954822674
+basemodel-3 model result : 0.06137965128755364
+basemodel-3 model result : 0.06052672351479558
+basemodel-3 model result : 0.06106270188615315
+basemodel-4 model result : 0.05801686457506427
+basemodel-4 model result : 0.058633930411306184
+basemodel-4 model result : 0.05868579231374378
+basemodel-4 model result : 0.0583316776572084
+basemodel-4 model result : 0.05856102906854208
+stack model result  	 : 0.05249289508454487
+
+第四轮：
+python main.py -a4 0.035                                                                       LB    0.0645018
+# 降低OLS的权重并没有带来很好的效果
+xgboost model result 	 : 0.0519318830007208
+lightGBM model result 	 : 0.05199765083791809
+basemodel-0 model result : 0.05248570218704431
+basemodel-0 model result : 0.05247659726004359
+basemodel-0 model result : 0.052483649027498254
+basemodel-0 model result : 0.052527617022353375
+basemodel-0 model result : 0.05249471085378104
+basemodel-1 model result : 0.05357611993671832
+basemodel-1 model result : 0.05340012364264545
+basemodel-1 model result : 0.0535300204079823
+basemodel-1 model result : 0.05330915748219162
+basemodel-1 model result : 0.053395885564504045
+basemodel-2 model result : 0.05371743943132152
+basemodel-2 model result : 0.053588262670414735
+basemodel-2 model result : 0.05364722478949034
+basemodel-2 model result : 0.05366165685465703
+basemodel-2 model result : 0.05380161887580474
+stack model result 	 : 0.05249289508454487
+
+
+第五轮：
+python main.py -a4 0.065                                                                       LB   0.0644861
+# 可以再提高一下OLS的比重
+xgboost model result 	: 0.0519318830007208
+lightGBM model result 	: 0.05199765083791809
+stack model result 	: 0.05249289508454487
+
+第六轮：
+python main.py -a4 0.085                                                                       LB    0.0644780
+xgboost model result 	: 0.0519318830007208
+lightGBM model result 	: 0.05199765083791809
+stack model result 	: 0.05249289508454487
+
+
+第七轮：
+python main.py -a4 0.105                                                                     LB   0.0644710
+感觉差不多了
+xgboost model result 	: 0.0519318830007208
+lightGBM model result 	: 0.05199765083791809
+stack model result 	: 0.05249289508454487
+
+
+第七轮：
+python main.py -a2 0.0066 -a4 0.105                   					       LB   0.0644607
+xgboost model result 	: 0.0519318830007208
+lightGBM model result 	: 0.05196282363285191
+stack model result 	: 0.05249289508454487
+
+
+第八轮：
+python main.py -a2 0.0106 -a4 0.105                  					       LB   0.0644602
+差不多了
+xgboost model result 	: 0.0519318830007208
+lightGBM model result 	: 0.05196282363285191
+stack model result 	: 0.05249289508454487
+
+
+第九轮：
+python main.py python main.py -a1 0.5111  -a2 0.0106 -a4 0.105 -a5 0.0982       	       LB   0.0644692
+不能一次改两个变量，还是一次一个来吧~~~~明天从第八轮的开始去优化其他的~
+
+
+第十轮：
+python main.py -a2 0.0106 -a4 0.105 -a5 0.1952						     	LB   0.0644666
+
+
+第十一轮：
+python main.py -a2 0.0106 -a4 0.105 -a5 0.1802 							LB   0.0644656
+
+
+第十二轮：
+python main.py -a2 0.0106 -a4 0.105 -a5 0.1602	 						LB   0.0644637
+
+
+第十三轮：
+python main.py -a2 0.0106 -a4 0.105 -a5 0.1202	 						LB    0.0644606
+
+
+第十四轮：
+python main.py -a2 0.0106 -a4 0.105 -a5 0.0502 							LB    0.0644576
+
+
+第十五轮： 
+python main.py -a2 0.0106 -a4 0.105 -a5 0.0102	 						LB    0.0644562
+
+
+第十六轮：
+
