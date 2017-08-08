@@ -187,10 +187,10 @@ class EnsemblingStacked(object):
 if __name__ == '__main__':
     # 定义命令参数
     parser = argparse.ArgumentParser()
-    parser.add_argument('-f', '--datafile', default='D:/mygit/Kaggle/Zillow_Home_Value_Prediction/newFeaturesbyMyself.csv', help='the path to the feature data file')
+    parser.add_argument('-f', '--datafile', default='D:/mygit/Kaggle/Zillow_Home_Value_Prediction/newFeaturesbyRFImputer.csv', help='the path to the feature data file')
     parser.add_argument('-a1', '--XGB_WEIGHT', default=0.6700, help='xgboost weight')
     parser.add_argument('-a2', '--BASELINE_WEIGHT', default=0.0056, help='baseline weight')
-    parser.add_argument('-a3', '--BASELINE_PRED', default=0.0115, help='baseline predict')
+    parser.add_argument('-a3', '--BASELINE_PRED', default=0.0114572, help='baseline predict')
     parser.add_argument('-a4', '--OLS_WEIGHT', default=0.050, help='ols weight')
     parser.add_argument('-a5', '--STACK_WEIGHT', default=0.1052, help='stacking model weight')
     args = parser.parse_args()
