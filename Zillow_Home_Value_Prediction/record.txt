@@ -194,4 +194,13 @@ python main.py -a2 0.0106 -a4 0.105 -a5 0.0102	 						LB    0.0644562
 
 
 第十六轮：
+python main.py -f newFeaturesbyRFImputer							LB    0.0644926
+
+
+第十七轮：
+python main.py -f newFeaturesbyRFImputer -a2 0.0106 -a4 0.105 -a5 0.0102 			LB    0.0644649
+
+
+第十八轮：
+python main.py -a1 0.6 -a2 0.0106 -a4 0.105 -a5 0.0102 						LB    0.0644558
 

@@ -6,7 +6,6 @@ Created on Wed Jul 26 18:48:42 2017
 """
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.preprocessing import Imputer
 import copy
 import pandas as pd
 import numpy as np
@@ -39,96 +38,53 @@ for c, dtype in zip(allData.columns, allData.dtypes):
         allData[c] = allData[c].astype(np.float32)
 
 class rfImputer(object):
-
-    def __init__(self, data, **kwargs):
+    def __init__(self, data):
         self.data = data
-        self.missing = self.find_missing()
-        self.prop_missing = self.prop_missing()
-        self.imputed_values = {}
-        self.imputation_scores = {}
+        self.missing = self.find_missing()              # 捕获缺失数据
+        self.prop_missing = self.prop_missing()         # 每一列数据的缺失比重
+        self.columns = data.columns                     # 特征信息
+        self.col_types = self.detect_dtype()           # 判断列的数值属性
+        self.imputed_values = {}                        # 初始化，用来保存填充数据的
 
-        # Columns in which values should be imputed
-        if 'incl_impute' in kwargs:
-            self.incl_impute = kwargs['incl_impute']
-        elif 'excl_impute' in kwargs:
-            self.incl_impute = [c for c in data.columns if c not in kwargs['excl_impute']]
-        else:
-            self.incl_impute = data.columns
-
-        # Columns that should be used as predictors for the imputation
-        if 'incl_predict' in kwargs:
-            self.incl_predict = kwargs['incl_predict']
-        elif 'excl_predict' in kwargs:
-            self.incl_predict = [c for c in data.columns if c not in kwargs['excl_predict']]
-        elif 'incl_predict' in kwargs and 'excl_predict' in kwargs:
-            raise ValueError("Specify either excl_predict or incl_predict")
-        else:
-            self.incl_predict = data.columns
-
-        ## Column types
-
-        # Manually specified column types
-        try:
-            self.is_classification = kwargs['is_classification']
-        except KeyError:
-            self.is_classification = []
-        try:
-            self.is_regression = kwargs['is_regression']
-        except KeyError:
-            self.is_regression = []
-
-        # Detect unspecified column types
-        self.col_types = self.assign_dtypes()
-
-
-    def detect_dtype(self, x):
-        if x.dtype == 'float32':
-            if len(x.unique()) < 4:
-                out = 'classification'
-            else:
-                out = 'regression'
-        elif x.dtype == 'object':
-            out = 'classification'
-        elif x.dtype == 'int64':
-            if len(x.unique()) < 4:
-                out = 'classification'
-            else:
-                out = 'regression'
-        else:
-            msg = 'Unrecognized data type: %s' %x.dtype
-            raise ValueError(msg)
-        
-        return out
-
-    def assign_dtypes(self):
-        """
-        Assign prespecified and detect non specified column types
-        """
+    def detect_dtype(self):
+        # 判断数据类型的
         dtypes = {}
-        for var in self.data.columns:
-            if var in self.is_classification:
-                dtypes[var] = 'classification'
-            elif var in self.is_regression:
-                dtypes[var] = 'regression'
+        
+        # 迭代每一列
+        for x in self.columns:
+            if self.data[x].dtype == 'float32':
+                if len(x.unique()) < 20:
+                    dtype[x] = 'classification'
+                else:
+                    dtype[x] = 'regression'
+            elif self.data[x].dtype == 'object':
+                dtype[x] = 'classification'
+            elif self.data[x].dtype == 'int64':
+                if len(self.data[x].unique()) < 20:
+                    dtype[x] = 'classification'
+                else:
+                    dtype[x] = 'regression'
             else:
-                dtypes[var] = self.detect_dtype(self.data[var])
-
+                msg = 'Unrecognized data type: %s' %x.dtype
+                raise ValueError(msg)
+        
         return dtypes
 
-    def find_missing(self):
 
+    def find_missing(self):
+        # 返回每一列的缺失数据
         missing = {}
-        for var in self.data.columns:
+        for var in self.columns:
             col = self.data[var]
             missing[var] = col.index[col.isnull()]
 
         return missing
 
     def prop_missing(self):
-
+        # 返回缺失数据的列的缺失比重
         out = {}
         n = self.data.shape[0]
-        for var in self.data.columns:
+        for var in self.columns:
             out[var] = float(len(self.missing[var])) / float(n)
         return out
         
@@ -136,58 +92,66 @@ class rfImputer(object):
     def mean_mode_impute(self, var):
         
         if self.col_types[var] == 'regression':
+            # 回归用均值
             statistic = self.data[var].mean()
         elif self.col_types[var] == 'classification':
+            # 分类用众数
             statistic = self.data[var].mode()[0]
         else:
             raise ValueError('Unknown data type')
-
+        
+        # 根据每列的缺失情况返回，填充值*缺失数的数组
         out = np.repeat(statistic, repeats = len(self.missing[var]))
         return out
 
                     
-    def rf_impute(self, impute_var, data_imputed, rf_params):
+    def rf_impute(self, impute_var, data_imputed):
 
-        y = data_imputed[impute_var]
-        include = [x for x in self.incl_predict if x != impute_var]
+        y = data_imputed[impute_var]                            # 将传入的列定义为目标变量
+        include = [x for x in self.columns if x != impute_var]  # 将除去传入的列外的特征作为输入特征
         X = data_imputed[include]
 
         if self.col_types[impute_var] == 'classification':
+            # 训练模型
             rf = RandomForestClassifier(n_estimators = 20, oob_score = True, n_jobs=2,)
             rf.fit(y = y, X = X)
+            # oob_decision_function_ : array of shape = [n_samples, n_classes]
+            # oob - out of bag 外包，随机森林是从数据中抽样进行训练的
+            # 获取y的全部的预测分类结果，选最大的~
             oob_predictions = np.argmax(rf.oob_decision_function_, axis = 1)
+            # 获取y中，对应原数据集中的缺失数据的值
             oob_imputation = oob_predictions[self.missing[impute_var]]
             
         else:
             rf = RandomForestRegressor(n_estimators = 20, oob_score = True, n_jobs=2,)
             rf.fit(y = y, X = X)
             oob_imputation = rf.oob_prediction_[self.missing[impute_var]]
-    
-        self.imputation_scores[impute_var] = rf.oob_score_
+        
+        # 更新填充数据
         self.imputed_values[impute_var] = oob_imputation
 
 
     def get_divergence(self, imputed_old):
-
+        # 初始化参数
         div_cat = 0
         norm_cat = 0
         div_cont = 0
         norm_cont = 0
-        for var in self.imputed_values:
+        
+        for var in self.imputed_values:             # 迭代填充数据
             if self.col_types[var] == 'regression':
-                div = imputed_old[var] - self.imputed_values[var]                
-                div_cont += div.dot(div)
-                norm_cont += self.imputed_values[var].dot(self.imputed_values[var])
+                # △ = ∑(xold - xnew)^2 / ∑(xnew)^2
+                div = imputed_old[var] - self.imputed_values[var]     # 两次填充值之差  
+                div_cont += div.dot(div)                            # 乘积求和      
+                norm_cont += self.imputed_values[var].dot(self.imputed_values[var])  # 乘积求和
             elif self.col_types[var] == 'classification':
+                # △ = ∑(I(xold != xnew)) / ∑(xnew)^2
                 div = [1 if old != new
                        else 0
                        for old, new in zip(imputed_old[var], self.imputed_values[var])]
                 div_cat += sum(div)
                 norm_cat += len(div)
-            else:
-                raise ValueError("Unrecognized variable type")
 
-        
         if norm_cat == 0:
             cat_out = 0
         else:
@@ -200,74 +164,56 @@ class rfImputer(object):
         return cat_out, cont_out
     
 
-    def impute(self, imputation_type, rf_params = None):
+    def impute(self):
+        
+        print ("Starting Random Forest Imputation")
 
-        if imputation_type == 'simple':
-            for var in self.incl_impute:
-                self.imputed_values[var] = self.mean_mode_impute(var)
-
-        elif imputation_type == 'random_forest':
-
-            print ("-" * 50)
-            print ("Starting Random Forest Imputation")
-            print ("-" * 50)
-
-            # Do a simple mean/mode imputation first
-
-            for var in self.data.columns:
-                self.imputed_values[var] = self.mean_mode_impute(var)
+        for var in self.data.columns:
+            # 先利用正常的方法进行数据填充
+            self.imputed_values[var] = self.mean_mode_impute(var)
             
-            # Rf Imputation Loop
-            div_cat = float('inf')
-            div_cont = float('inf')
-            stop = False
-            i = 0
-            while not stop:
+        # 初始化参数
+        div_cat = float('inf')
+        div_cont = float('inf')
+        stop = False
+        i = 0
+        #　搞事~
+        while not stop:
+            i += 1
+            print ("Iteration %d:" %i)
 
-                i += 1
-                print ("Iteration %d:" %i)
-                print ("."* 10)
-                # Store results from previous iteration
-                imputations_old = copy.copy(self.imputed_values)
-                div_cat_old = div_cat
-                div_cont_old = div_cont
+            # 保存上一次迭代的结果
+            imputations_old = copy.copy(self.imputed_values)       # 填充的数据
+            div_cat_old = div_cat                                  # 标称型特征散度
+            div_cont_old = div_cont                                # 数值型特征散度
 
-                # Make predictor matrix, using the imputed values
-                data_imputed = self.imputed_df(output = False)
+            # 对原数据集进行缺失值填充，并复制，利用imputed_values
+            data_imputed = self.imputed_df()
+            
+            for var in self.columns:
+                # 利用随机森林对每一列进行缺失值预测
+                self.rf_impute(var, data_imputed)
+            
+            # 获取散度
+            # 一种评价标准，具体可查看：http://bioinformatics.oxfordjournals.org/content/28/1/112.short
+            div_cat, div_cont = self.get_divergence(imputations_old)
+            print ("Categorical divergence: %f" %div_cat)
+            print ("Continuous divergence: %f" %div_cont)
 
-                for var in self.incl_impute:
-                    self.rf_impute(var, data_imputed, rf_params)
-
-                div_cat, div_cont = self.get_divergence(imputations_old)
-
-                print ("Categorical divergence: %f" %div_cat)
-                print ("Continuous divergence: %f" %div_cont)
-
-                # Check if stopping criterion is met
-                if div_cat >= div_cat_old and div_cont >= div_cont_old:
-                    stop = True
-
-        else:
-            msg = 'Unrecognized imputation type: %s' %imputation_type
-            raise ValueError(msg)
+            # 检查是否满足停止条件~
+            if div_cat >= div_cat_old and div_cont >= div_cont_old:
+                stop = True
 
 
-
-    def imputed_df(self, output = True):
+    def imputed_df(self):
 
         if len(self.imputed_values) == 0:
             raise ValueError('No imputed values available. Call impute() first')
         
         out_df = self.data.copy()
-        if not output:
-            iterator = self.data.columns
-        else:
-            iterator = self.incl_impute
         
-        # for var in iterator:
-        #     for idx, imp in zip(self.missing[var], self.imputed_values[var]):
-        #         out_df[var].iloc[idx] = imp
-        for var in iterator:
+        for var in self.columns:
+            # 对每一列进行填充缺失数据
             out_df[var].iloc[self.missing[var]] = self.imputed_values[var]
 
         return out_df
