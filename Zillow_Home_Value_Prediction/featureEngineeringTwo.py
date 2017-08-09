@@ -10,39 +10,12 @@ import copy
 import pandas as pd
 import numpy as np
 
-allData = pd.read_csv('D:/mygit/Kaggle/Zillow_Home_Value_Prediction/properties_2016.csv')
-        
-cols = ['hashottuborspa','propertycountylandusecode',
-        'propertyzoningdesc','fireplaceflag','taxdelinquencyflag']
-
-allData.drop([cols[0]],axis=1,inplace=True)
-allData.drop([cols[1]],axis=1,inplace=True)
-allData.drop([cols[2]],axis=1,inplace=True)
-def processFirePlaceFlag(x):
-    if x is True:
-        return 1
-    return x
-allData[cols[3]] = allData[cols[3]].apply(processFirePlaceFlag)
-def processTaxelinQuencyFlag(x):
-    if x == 'Y':
-        return 1
-    return x
-allData[cols[4]] = allData[cols[4]].apply(processTaxelinQuencyFlag)
-
-dtype_df = allData.dtypes.reset_index()
-dtype_df.columns = ['Count','ColumnType']
-print (dtype_df)
-
-for c, dtype in zip(allData.columns, allData.dtypes):	
-    if dtype == np.float64:
-        allData[c] = allData[c].astype(np.float32)
-
 class rfImputer(object):
     def __init__(self, data):
         self.data = data
+        self.columns = data.columns.values                     # 特征信息
         self.missing = self.find_missing()              # 捕获缺失数据
         self.prop_missing = self.prop_missing()         # 每一列数据的缺失比重
-        self.columns = data.columns                     # 特征信息
         self.col_types = self.detect_dtype()           # 判断列的数值属性
         self.imputed_values = {}                        # 初始化，用来保存填充数据的
 
@@ -53,19 +26,19 @@ class rfImputer(object):
         # 迭代每一列
         for x in self.columns:
             if self.data[x].dtype == 'float32':
-                if len(x.unique()) < 20:
-                    dtype[x] = 'classification'
+                if len(self.data[x].unique()) < 20:
+                    dtypes[x] = 'classification'
                 else:
-                    dtype[x] = 'regression'
+                    dtypes[x] = 'regression'
             elif self.data[x].dtype == 'object':
-                dtype[x] = 'classification'
+                dtypes[x] = 'classification'
             elif self.data[x].dtype == 'int64':
                 if len(self.data[x].unique()) < 20:
-                    dtype[x] = 'classification'
+                    dtypes[x] = 'classification'
                 else:
-                    dtype[x] = 'regression'
+                    dtypes[x] = 'regression'
             else:
-                msg = 'Unrecognized data type: %s' %x.dtype
+                msg = 'Unrecognized data type: %s' %self.data[x].dtype
                 raise ValueError(msg)
         
         return dtypes
@@ -218,8 +191,35 @@ class rfImputer(object):
 
         return out_df
 
+if __name__== '__main__':
+    allData = pd.read_csv('D:/mygit/Kaggle/Zillow_Home_Value_Prediction/properties_2016.csv')
+            
+    cols = ['hashottuborspa','propertycountylandusecode',
+            'propertyzoningdesc','fireplaceflag','taxdelinquencyflag']
 
-imp_df = rfImputer(allData)
-imp_df.impute('random_forest')
+    allData.drop([cols[0]],axis=1,inplace=True)
+    allData.drop([cols[1]],axis=1,inplace=True)
+    allData.drop([cols[2]],axis=1,inplace=True)
+    def processFirePlaceFlag(x):
+        if x is True:
+            return 1
+        return x
+    allData[cols[3]] = allData[cols[3]].apply(processFirePlaceFlag)
+    def processTaxelinQuencyFlag(x):
+        if x == 'Y':
+            return 1
+        return x
+    allData[cols[4]] = allData[cols[4]].apply(processTaxelinQuencyFlag)
 
-imp_df.imputed_df().to_csv('D:/mygit/Kaggle/Zillow_Home_Value_Prediction/newFeaturesbyRFImputer.csv')
+    dtype_df = allData.dtypes.reset_index()
+    dtype_df.columns = ['Count','ColumnType']
+    print (dtype_df)
+
+    for c, dtype in zip(allData.columns, allData.dtypes):   
+        if dtype == np.float64:
+            allData[c] = allData[c].astype(np.float32)
+
+    imp_df = rfImputer(allData)
+    imp_df.impute()
+
+    imp_df.imputed_df().to_csv('D:/mygit/Kaggle/Zillow_Home_Value_Prediction/newFeaturesbyRFImputer.csv')
