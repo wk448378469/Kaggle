@@ -14,13 +14,17 @@ from sklearn.linear_model import LinearRegression
 import random
 from datetime import datetime
 from sklearn.linear_model import ElasticNet,Lasso,Ridge
-from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor, ExtraTreesRegressor
+from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.pipeline import make_pipeline
-from sklearn.preprocessing import RobustScaler
+from sklearn.preprocessing import RobustScaler,StandardScaler
 from sklearn.base import BaseEstimator, TransformerMixin, RegressorMixin, clone
-from sklearn.model_selection import KFold, train_test_split
-from sklearn.svm import SVR
+from sklearn.model_selection import KFold
+from sklearn.cross_validation import KFold as Kf
 import argparse
+from sklearn.linear_model import BayesianRidge
+from sklearn.neural_network import MLPRegressor
+from sklearn.metrics import mean_absolute_error  
+
 
 class StackingAverageModels(BaseEstimator,RegressorMixin,TransformerMixin):
     def __init__(self,base_models,meta_model,n_fold=5):
@@ -52,102 +56,131 @@ class StackingAverageModels(BaseEstimator,RegressorMixin,TransformerMixin):
 
 
 class EnsemblingStacked(object):
-    def __init__(self,train,properties,submission):
+    def __init__(self,train,properties,submission,random_state=2017):
+        self.random_state = random_state
         self.LRModel = LinearRegression(n_jobs=-1)
         self.LRModelColumns = []
         self.LRModel.fit(self.get_features(train.drop(['parcelid','logerror'],axis=1)),train['logerror'])
-        y = train['logerror'].values
-        X = train.drop(['parcelid','logerror','transactiondate'],axis=1).get_values()
-        self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(X, y, test_size=0.05, random_state=42)
-        del X,y;gc.collect()
+        self.X = train.drop(['parcelid','logerror','transactiondate'],axis=1)
+        self.y = train['logerror']
 
     def xgboostModel(self):
-        y_mean = np.mean(self.y_train)
-        xgb_params_1 = {
-                        'eta': 0.037,
-                        'max_depth': 5,
-                        'subsample': 0.80,
-                        'objective': 'reg:linear',
-                        'eval_metric': 'mae',
-                        'lambda': 0.8,
-                        'alpha': 0.4, 
-                        'base_score': y_mean,
-                        'silent': 1
-                        }
-        xgb_params_2 = {
-                        'eta': 0.033,
-                        'max_depth': 6,
-                        'subsample': 0.80,
-                        'objective': 'reg:linear',
-                        'eval_metric': 'mae',
-                        'base_score': y_mean,
-                        'silent': 1
-                        }
-        dtrain = xgb.DMatrix(self.X_train, self.y_train)
-        dtest = xgb.DMatrix(self.X_test)
-        model1 = xgb.train(dict(xgb_params_1, silent=1), dtrain, num_boost_round=250)
-        model2 = xgb.train(dict(xgb_params_2, silent=1), dtrain, num_boost_round=150)
-        xgb_pred1 = model1.predict(dtest)
-        xgb_pred2 = model2.predict(dtest)
-        xgb_pred = 0.8083*xgb_pred1 + (1-0.8083)*xgb_pred2
-        print ('xgboost model result : {result} '.format(result = self.MAE(xgb_pred)))
-        del dtrain,dtest,xgb_params_1,xgb_params_2,xgb_pred ; gc.collect()
+        def evalerror(preds, dtrain):  
+            labels = dtrain.get_label()  
+            return 'mae', mean_absolute_error(np.exp(preds), np.exp(labels))  
         
-        # 预测
-        dpred = xgb.DMatrix(properties.drop(['parcelid','transactiondate'],axis=1).get_values())
-        returnData = 0.8083*model1.predict(dpred) +(1-0.8083)* model2.predict(dpred)
-        return returnData
+        def runXGB(trainX, trainY ,testX, index, RANDOM_STATE):  
+            train_index, test_index = index  
+            X_train, X_val = trainX.iloc[train_index], trainX.iloc[test_index]  
+            y_train, y_val = trainY.iloc[train_index], trainY.iloc[test_index]  
+          
+            xgtrain = xgb.DMatrix(X_train, label=y_train)  
+            xgval = xgb.DMatrix(X_val, label=y_val)  
+            xgtest = xgb.DMatrix(testX.drop(['parcelid','transactiondate'],axis=1))  
+            X_val = xgb.DMatrix(X_val)  
+          
+            params = {  
+                        'eta': 0.1,  
+                        'silent': 1,  
+                        'verbose_eval': True,
+                        'objective': 'reg:linear',
+                        'seed':RANDOM_STATE,
+                        'alpha': 1.4412900129552941,
+                        'colsample_bytree': 0.54608931927832327,
+                        'gamma': 0.13040896563538462,
+                        'max_depth': 13,
+                        'min_child_weight': 10.278039912781676,
+                        'subsample': 0.99808084817020015
+                      }  
+            rounds = 3000  
+          
+            watchlist = [(xgtrain, 'train'), (xgval, 'eval')]  
+            model = xgb.train(params, xgtrain, rounds, watchlist, feval=evalerror, early_stopping_rounds=50)  
+          
+            cv_score = mean_absolute_error(model.predict(X_val) ,y_val)  
+            predict = model.predict(xgtest)
+            
+            print ("iteration = %d"%(model.best_iteration))
+            del X_val,X_train,y_train,y_val,xgtrain,xgval,xgtest,model;gc.collect()
+            return predict, cv_score  
+        
+        nfolds = 10  
+        kf = Kf(self.X.shape[0], n_folds = nfolds, shuffle = True, random_state = self.random_state) 
+        predicts = np.zeros(properties.shape[0])  
+        for i, index in enumerate(kf):  
+            print('Xgboost fold %d' % (i + 1))  
+            predict, cv_score = runXGB(self.X, self.y, properties, index, self.random_state)  
+            print (cv_score)  
+            predicts += predict  
+        predicts = predicts / nfolds
+        return predicts
     
     def lgbModel(self):
-        params = {'max_bin':10,
-                  'learning_rate':0.0021,
-                  'boosting_type':'gbdt',
-                  'objective':'regression',
-                  'metric':'l1',
-                  'sub_feature':0.345,
-                  'bagging_fraction':0.85,
-                  'bagging_freq':40,
-                  'num_leaves':512,
-                  'min_data':500,
-                  'min_hessian':0.05,
-                  'verbose':0,
-                  'feature_fraction_seed':2,
-                  'bagging_seed':3,
-                  }
-        d_train = lgb.Dataset(self.X_train,label=self.y_train)
-        clf = lgb.train(params, d_train, num_boost_round=430)
-        lgb_pred = clf.predict(self.X_test)
-        print ('lightGBM model result : {result} '.format(result = self.MAE(lgb_pred)))
-        del d_train,lgb_pred;gc.collect()
+        def runLGB(trainX, trainY ,testX, index, RANDOM_STATE):  
+            train_index, test_index = index  
+            X_train, X_val = trainX.iloc[train_index], trainX.iloc[test_index]  
+            y_train, y_val = trainY.iloc[train_index], trainY.iloc[test_index]  
+          
+            xgtrain = lgb.Dataset(X_train,label=y_train)
+            xgval = lgb.Dataset(X_val, label=y_val)  
+          
+            params = {  
+                      'objective':'regression',
+                      'metric':'l1',
+                      'seed': RANDOM_STATE,
+                      'feature_fraction': 0.30892969365095979,
+                      'lambda_l1': 0.44204748407615901,
+                      'lambda_l2': 1.4814177193018863,
+                      'max_bin': 162,
+                      'max_depth': 65,
+                      'min_data_in_leaf': 105,
+                      'min_sum_hessian_in_leaf': 0.00070310444034356442,
+                      'num_leaves': 29,
+                      }  
+            rounds = 3000  
+          
+            model = lgb.train(params, xgtrain, rounds, valid_sets=xgval,  early_stopping_rounds=50)  
+            cv_score = mean_absolute_error(model.predict(X_val) ,y_val)
+            predict = model.predict(testX)
+            
+            print ("iteration = %d"%(model.best_iteration))
+            del model,X_train,X_val,y_train,y_val,xgtrain,xgval ; gc.collect()
+            return predict, cv_score  
         
-        # 预测
-        returnData = clf.predict(properties.drop(['parcelid','transactiondate'],axis=1))
-        return returnData
+        nfolds = 10
+        kf = Kf(self.X.shape[0], n_folds = nfolds, shuffle = True, random_state = self.random_state) 
+        predicts = np.zeros(properties.shape[0])
+        testXData = properties.drop(['parcelid','transactiondate'],axis=1)
+
+        for i, index in enumerate(kf):  
+            print('lightGBM fold %d' % (i + 1))  
+            predict, cv_score = runLGB(self.X, self.y, testXData, index, self.random_state)  
+            print (cv_score)  
+            predicts += predict  
+        predicts = predicts / nfolds
+        return predicts
 
 
     def stackModel(self):
         # basemodel
-        lasso = make_pipeline(RobustScaler(), Lasso(alpha =1, random_state=77))
-        ENet = make_pipeline(RobustScaler(), ElasticNet(alpha=0.9, l1_ratio=.5, random_state=3))
-        # rfc = RandomForestRegressor(n_estimators=50,random_state=14,n_jobs=-1)
-        # etr = ExtraTreesRegressor(n_estimators=40,n_jobs=-1,random_state=22)
-        rigde = make_pipeline(RobustScaler(), Ridge(alpha =0.7,random_state=33))
-        GBoost = GradientBoostingRegressor(n_estimators=150, loss='huber', random_state =5)
-        # svr = SVR()
-
-        # 调用实例
-        models = StackingAverageModels(base_models = (ENet,GBoost,rigde), meta_model = lasso)
-        models.fit(self.X_train, self.y_train)
-        stack_pred = models.predict(self.X_test)
-        print ('stack model result : {result} '.format(result = self.MAE(stack_pred)))
-        
+        lasso = make_pipeline(StandardScaler(), Lasso(alpha =0.0002, random_state=self.random_state))
+        ridge = make_pipeline(RobustScaler(), Ridge(alpha=1,random_state=self.random_state))      
+        ENet = make_pipeline(StandardScaler(), ElasticNet(alpha=0.0005, l1_ratio=1, random_state=self.random_state))      
+        GBoost = GradientBoostingRegressor(n_estimators=3000, learning_rate=0.05,
+                                   max_depth=4, max_features='sqrt',
+                                   min_samples_leaf=15, min_samples_split=10, 
+                                   loss='huber', random_state =self.random_state)
+        MLP = make_pipeline(StandardScaler(),MLPRegressor(hidden_layer_sizes=(30, ), 
+                                   activation='logistic', solver='sgd', 
+                                   alpha=0.62,max_iter=1000,random_state=self.random_state))
+        bayeR = make_pipeline(RobustScaler(),BayesianRidge(n_iter=300, tol=0.001, alpha_1=1e-04, 
+                                              alpha_2=1e-02, lambda_1=1, lambda_2=0))
+        models = StackingAverageModels(base_models = (lasso,ridge,ENet,GBoost,MLP,bayeR), meta_model = lasso)
+        models.fit(self.X.get_values(),self.y.values)
         # 预测
         returnData = models.predict(properties.drop(['parcelid','transactiondate'],axis=1).get_values())
         return returnData
 
-    def MAE(self,ypred):
-        return np.sum([abs(self.y_test[i]-ypred[i]) for i in range(len(self.y_test))]) / len(self.y_test)
-    
     def get_features(self,df):
         df["transactiondate"] = pd.to_datetime(df["transactiondate"])
         df["transactiondate_year"] = df["transactiondate"].dt.year
@@ -168,7 +201,6 @@ class EnsemblingStacked(object):
         
         # 除OLS外的预测结果的结合
         basePred = xgbWeight*self.xgboostModel() + baselineWeight*args.BASELINE_PRED + lgbWeight*self.lgbModel() + stackWeight * self.stackModel()
-        
         # 准备提交的数据
         test_dates = ['2016-10-01','2016-11-01','2016-12-01','2017-10-01','2017-11-01','2017-12-01']
         test_columns = ['201610','201611','201612','201710','201711','201712']
